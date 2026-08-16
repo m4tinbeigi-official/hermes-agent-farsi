@@ -23,13 +23,13 @@ curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
 ## نصب یک‌کلیکی
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<YOUR_GITHUB_USERNAME>/hermes-agent-farsi/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/m4tinbeigi-official/hermes-agent-farsi/main/install.sh | bash
 ```
 
 یا به‌صورت محلی (بعد از کلون کردن این ریپو):
 
 ```bash
-git clone https://github.com/<YOUR_GITHUB_USERNAME>/hermes-agent-farsi.git
+git clone https://github.com/m4tinbeigi-official/hermes-agent-farsi.git
 cd hermes-agent-farsi
 ./install.sh
 ```
