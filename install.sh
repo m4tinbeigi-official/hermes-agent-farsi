@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+# ============================================================================
+# hermes-agent-farsi — نصب یک‌کلیکی بومی‌سازی فارسی برای Hermes Agent
+# ============================================================================
+# این اسکریپت یک نصب موجود Hermes Agent (https://github.com/NousResearch/hermes-agent)
+# را با موارد زیر بومی‌سازی می‌کند:
+#   - ترجمه کامل داشبورد وب به فارسی (تمام صفحات + پیکربندی پویا)
+#   - راست‌چین‌سازی خودکار (RTL) کل رابط کاربری
+#   - فونت وزیرمتن (Vazirmatn) به‌صورت محلی
+#   - ترجمه پیام‌های CLI/گیت‌وی (تأیید دستورات، پاسخ‌های تلگرام و ...)
+#
+# کاربرد:
+#   curl -fsSL https://raw.githubusercontent.com/<user>/hermes-agent-farsi/main/install.sh | bash
+#
+# یا به‌صورت محلی:
+#   ./install.sh [مسیر نصب هرمس]
+#
+# پیش‌نیاز: Hermes Agent باید از قبل نصب شده باشد (hermes-agent.nousresearch.com)
+# ============================================================================
+
+set -euo pipefail
+
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; CYAN='\033[0;36m'; NC='\033[0m'
+
+log()  { echo -e "${CYAN}→${NC} $1"; }
+ok()   { echo -e "${GREEN}✓${NC} $1"; }
+warn() { echo -e "${YELLOW}⚠${NC} $1"; }
+err()  { echo -e "${RED}✗${NC} $1" >&2; }
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HERMES_DIR="${1:-${HERMES_HOME:-$HOME/.hermes}/hermes-agent}"
+
+if [ ! -d "$HERMES_DIR" ]; then
+    err "نصب Hermes Agent در مسیر $HERMES_DIR پیدا نشد."
+    echo "  اگر جای دیگری نصب کرده‌اید، مسیر را به‌عنوان آرگومان بدهید:"
+    echo "    ./install.sh /path/to/hermes-agent"
+    exit 1
+fi
+
+log "نصب Hermes Agent در $HERMES_DIR پیدا شد."
+
+# --- گیت‌وی در حال اجرا را متوقف می‌کنیم تا فایل‌ها با خیال راحت جایگزین شوند ---
+GATEWAY_WAS_RUNNING=false
+if command -v hermes >/dev/null 2>&1 && hermes status 2>/dev/null | grep -qi "running"; then
+    GATEWAY_WAS_RUNNING=true
+fi
+
+# --- ۱) کپی فایل‌های جدید ---
+log "کپی فایل‌های جدید (ترجمه‌ها، فونت، مترجم پیکربندی)..."
+mkdir -p "$HERMES_DIR/locales"
+mkdir -p "$HERMES_DIR/web/src/i18n"
+mkdir -p "$HERMES_DIR/web/src/lib"
+mkdir -p "$HERMES_DIR/web/public/fonts-fa"
+
+cp "$SCRIPT_DIR/patch/new-files/locales/fa.yaml"              "$HERMES_DIR/locales/fa.yaml"
+cp "$SCRIPT_DIR/patch/new-files/web/src/i18n/fa.ts"            "$HERMES_DIR/web/src/i18n/fa.ts"
+cp "$SCRIPT_DIR/patch/new-files/web/src/lib/faConfigLabels.ts" "$HERMES_DIR/web/src/lib/faConfigLabels.ts"
+cp "$SCRIPT_DIR/patch/new-files/web/public/fonts-fa/"*.woff2   "$HERMES_DIR/web/public/fonts-fa/"
+ok "فایل‌های جدید کپی شدند."
+
+# --- ۲) اعمال پچ روی فایل‌های موجود ---
+log "اعمال تغییرات روی فایل‌های موجود..."
+cd "$HERMES_DIR"
+if git apply --check "$SCRIPT_DIR/patch/persian-localization.diff" 2>/dev/null; then
+    git apply "$SCRIPT_DIR/patch/persian-localization.diff"
+    ok "پچ با موفقیت اعمال شد."
+elif patch -p1 --dry-run < "$SCRIPT_DIR/patch/persian-localization.diff" >/dev/null 2>&1; then
+    patch -p1 < "$SCRIPT_DIR/patch/persian-localization.diff"
+    ok "پچ با موفقیت اعمال شد (patch)."
+else
+    warn "اعمال خودکار پچ ممکن نشد — احتمالاً نسخه Hermes شما با نسخه‌ای که این پچ رویش ساخته شده فرق دارد."
+    warn "می‌توانید تغییرات را دستی از patch/persian-localization.diff اعمال کنید، یا یک ایشو باز کنید."
+    exit 1
+fi
+
+# --- ۳) تنظیم زبان پیش‌فرض در config.yaml ---
+CONFIG_FILE="$HOME/.hermes/config.yaml"
+if [ -f "$CONFIG_FILE" ] && ! grep -q "^\s*language:\s*fa" "$CONFIG_FILE"; then
+    if grep -q "^display:" "$CONFIG_FILE"; then
+        # اگر بخش display از قبل هست، language را زیرش اضافه می‌کنیم
+        python3 - "$CONFIG_FILE" <<'PYEOF'
+import sys, re
+path = sys.argv[1]
+with open(path) as f:
+    lines = f.readlines()
+out = []
+in_display = False
+inserted = False
+for line in lines:
+    out.append(line)
+    if re.match(r'^display:\s*$', line):
+        in_display = True
+    elif in_display and not inserted and (line.strip() == "" or not line.startswith(" ")):
+        out.insert(len(out) - 1, "  language: fa\n")
+        inserted = True
+        in_display = False
+if in_display and not inserted:
+    out.append("  language: fa\n")
+with open(path, "w") as f:
+    f.writelines(out)
+PYEOF
+    else
+        printf '\ndisplay:\n  language: fa\n' >> "$CONFIG_FILE"
+    fi
+    ok "زبان پیش‌فرض روی فارسی تنظیم شد ($CONFIG_FILE)."
+else
+    ok "زبان فارسی از قبل در config.yaml تنظیم شده بود."
+fi
+
+# --- ۴) بازساخت داشبورد وب ---
+log "در حال بازساخت داشبورد وب (ممکن است کمی طول بکشد)..."
+HERMES_BIN="$HERMES_DIR/venv/bin/python"
+if [ ! -x "$HERMES_BIN" ]; then
+    HERMES_BIN="python3"
+fi
+
+if "$HERMES_BIN" -m hermes_cli.main dashboard --stop >/dev/null 2>&1; then :; fi
+(cd "$HERMES_DIR" && "$HERMES_BIN" -m hermes_cli.main dashboard --no-open >/tmp/hermes-farsi-dashboard-build.log 2>&1 &)
+BUILD_PID=$!
+sleep 2
+log "بازساخت داشبورد در پس‌زمینه شروع شد. برای دیدن پیشرفت:"
+echo "    tail -f /tmp/hermes-farsi-dashboard-build.log"
+
+# --- ۵) راه‌اندازی مجدد گیت‌وی (در صورت اجرا بودن) ---
+if [ "$GATEWAY_WAS_RUNNING" = true ] && command -v hermes >/dev/null 2>&1; then
+    log "راه‌اندازی مجدد گیت‌وی..."
+    hermes gateway restart >/dev/null 2>&1 || warn "راه‌اندازی مجدد خودکار گیت‌وی ناموفق بود؛ دستی اجرا کنید: hermes gateway restart"
+fi
+
+echo
+ok "نصب کامل شد!"
+echo "  داشبورد را در http://localhost:9119 باز کنید (چند ثانیه صبر کنید تا build تمام شود)."
+echo "  اگر زبان به‌طور خودکار فارسی نبود، از دکمه زبان (پایین سایدبار) «فارسی» را انتخاب کنید."
