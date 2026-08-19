@@ -20,7 +20,38 @@ Hermes Agent باید از قبل نصب شده باشد:
 curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
 ```
 
-## نصب یک‌کلیکی
+## روش ۱ (پیشنهادی): نصب به‌عنوان پلاگین داشبورد — بدون rebuild
+
+این روش یک پلاگین واقعی داشبورد هرمس است (`plugin/hermes-farsi/`، طبق سیستم
+پلاگین رسمی هرمس در `~/.hermes/plugins/<name>/dashboard/`). هیچ فایل سورسی
+پچ یا rebuild نمی‌شود — فقط یک پوشه کپی و در `config.yaml` فعال می‌شود:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/m4tinbeigi-official/hermes-agent-farsi/main/install-plugin.sh | bash
+```
+
+یا محلی:
+
+```bash
+git clone https://github.com/m4tinbeigi-official/hermes-agent-farsi.git
+cd hermes-agent-farsi
+./install-plugin.sh
+```
+
+**چطور کار می‌کند:** پلاگین یک اسکریپت جاوااسکریپت است که با `MutationObserver`
+متن‌های شناخته‌شده رابط کاربری را (دیکشنری تولیدشده از حدود ۷۰۰ رشته ترجمه‌شده
+واقعی هرمس) در لحظه به فارسی جایگزین می‌کند، `dir="rtl"` را روی صفحه اعمال
+می‌کند، و فونت وزیرمتن را بارگذاری می‌کند — همه‌چیز سمت مرورگر، بدون نیاز به
+rebuild داشبورد یا هماهنگی با نسخه Hermes نصب‌شده.
+
+**محدودیت شناخته‌شده:** فقط متن‌هایی که دقیقاً در دیکشنری موجودند ترجمه
+می‌شوند؛ متن‌های ترکیبی با مقدار پویا (مثل «۵ پیام ago») که در دیکشنری نیستند
+به انگلیسی می‌مانند. برای ترجمه ۱۰۰٪ کامل و دقیق، از روش ۲ (پچ سورس) استفاده
+کنید.
+
+غیرفعال‌سازی: `hermes plugins disable hermes-farsi`
+
+## روش ۲: پچ سورس یک‌کلیکی (ترجمه کامل و دقیق‌تر)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/m4tinbeigi-official/hermes-agent-farsi/main/install.sh | bash

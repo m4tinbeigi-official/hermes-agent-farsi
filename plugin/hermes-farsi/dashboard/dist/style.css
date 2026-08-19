@@ -1,0 +1,48 @@
+/* hermes-farsi — injects Vazirmatn + forces RTL across the whole dashboard,
+   not just this plugin's own (hidden) tab. Loaded as a global <link> by
+   usePlugins.ts, so these rules apply document-wide. */
+
+@font-face {
+  font-family: "Vazirmatn";
+  src: url("fonts/Vazirmatn-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vazirmatn";
+  src: url("fonts/Vazirmatn-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vazirmatn";
+  src: url("fonts/Vazirmatn-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+html[data-hermes-farsi="1"],
+html[data-hermes-farsi="1"] body {
+  direction: rtl;
+}
+
+html[data-hermes-farsi="1"] body,
+html[data-hermes-farsi="1"] input,
+html[data-hermes-farsi="1"] textarea,
+html[data-hermes-farsi="1"] select,
+html[data-hermes-farsi="1"] button {
+  font-family: "Vazirmatn", system-ui, -apple-system, "Segoe UI", Tahoma, Arial, sans-serif !important;
+}
+
+/* Keep raw code/log/mono content LTR and in its own font — flipping
+   file paths, JSON, and shell output to RTL makes them unreadable. */
+html[data-hermes-farsi="1"] code,
+html[data-hermes-farsi="1"] pre,
+html[data-hermes-farsi="1"] .font-mono,
+html[data-hermes-farsi="1"] [class*="font-mono"] {
+  direction: ltr;
+  unicode-bidi: isolate;
+}

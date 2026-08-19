@@ -1,0 +1,13 @@
+{
+  "name": "hermes-farsi",
+  "label": "فارسی‌ساز هرمس",
+  "description": "داشبورد هرمس را در لحظه به فارسی و راست‌چین تبدیل می‌کند — بدون rebuild.",
+  "icon": "Languages",
+  "version": "1.0.0",
+  "tab": {
+    "hidden": true
+  },
+  "entry": "dist/index.js",
+  "css": "dist/style.css",
+  "has_api": false
+}
