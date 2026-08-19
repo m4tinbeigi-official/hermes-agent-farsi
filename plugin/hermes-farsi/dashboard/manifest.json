@@ -4,6 +4,8 @@
   "description": "داشبورد هرمس را در لحظه به فارسی و راست‌چین تبدیل می‌کند — بدون rebuild.",
   "icon": "Languages",
   "version": "1.0.0",
+  "author": "Rick Sanchez",
+  "homepage": "https://github.com/m4tinbeigi-official/hermes-agent-farsi",
   "tab": {
     "hidden": true
   },

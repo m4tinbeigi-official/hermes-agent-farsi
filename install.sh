@@ -80,8 +80,10 @@ cd "$HERMES_DIR"
 if git apply --check "$SOURCE_DIR/patch/persian-localization.diff" 2>/dev/null; then
     git apply "$SOURCE_DIR/patch/persian-localization.diff"
     ok "پچ با موفقیت اعمال شد."
-elif patch -p1 --dry-run < "$SOURCE_DIR/patch/persian-localization.diff" >/dev/null 2>&1; then
-    patch -p1 < "$SOURCE_DIR/patch/persian-localization.diff"
+elif git apply --reverse --check "$SOURCE_DIR/patch/persian-localization.diff" 2>/dev/null; then
+    ok "پچ از قبل روی فایل‌ها اعمال شده است."
+elif patch -p1 --dry-run -N < "$SOURCE_DIR/patch/persian-localization.diff" >/dev/null 2>&1; then
+    patch -p1 -N < "$SOURCE_DIR/patch/persian-localization.diff"
     ok "پچ با موفقیت اعمال شد (patch)."
 else
     warn "اعمال خودکار پچ ممکن نشد — احتمالاً نسخه Hermes شما با نسخه‌ای که این پچ رویش ساخته شده فرق دارد."
@@ -90,35 +92,52 @@ else
 fi
 
 # --- ۳) تنظیم زبان پیش‌فرض در config.yaml ---
-CONFIG_FILE="$HOME/.hermes/config.yaml"
-if [ -f "$CONFIG_FILE" ] && ! grep -q "^\s*language:\s*fa" "$CONFIG_FILE"; then
-    if grep -q "^display:" "$CONFIG_FILE"; then
-        # اگر بخش display از قبل هست، language را زیرش اضافه می‌کنیم
-        python3 - "$CONFIG_FILE" <<'PYEOF'
-import sys, re
+CONFIG_FILE="${HERMES_HOME:-$HOME/.hermes}/config.yaml"
+PYTHON_BIN="$HERMES_DIR/venv/bin/python"
+if [ ! -x "$PYTHON_BIN" ]; then
+    PYTHON_BIN="python3"
+fi
+
+if ! grep -q "language: fa" "$CONFIG_FILE" 2>/dev/null; then
+    log "تنظیم زبان پیش‌فرض روی فارسی در config.yaml..."
+    "$PYTHON_BIN" - "$CONFIG_FILE" <<'PYEOF'
+import sys
+try:
+    import yaml
+except ImportError:
+    yaml = None
+
 path = sys.argv[1]
-with open(path) as f:
-    lines = f.readlines()
-out = []
-in_display = False
-inserted = False
-for line in lines:
-    out.append(line)
-    if re.match(r'^display:\s*$', line):
-        in_display = True
-    elif in_display and not inserted and (line.strip() == "" or not line.startswith(" ")):
-        out.insert(len(out) - 1, "  language: fa\n")
-        inserted = True
-        in_display = False
-if in_display and not inserted:
-    out.append("  language: fa\n")
-with open(path, "w") as f:
-    f.writelines(out)
+if yaml is not None:
+    try:
+        with open(path) as f:
+            config = yaml.safe_load(f) or {}
+    except FileNotFoundError:
+        config = {}
+    display = config.setdefault("display", {})
+    display["language"] = "fa"
+    with open(path, "w") as f:
+        yaml.safe_dump(config, f, allow_unicode=True, sort_keys=False)
+else:
+    import re
+    try:
+        with open(path) as f:
+            text = f.read()
+    except FileNotFoundError:
+        text = ""
+    if re.search(r"^display:\s*$", text, re.MULTILINE):
+        text = re.sub(
+            r"^(display:\s*\n)",
+            r"\1  language: fa\n",
+            text,
+            flags=re.MULTILINE,
+        )
+    else:
+        text += "\ndisplay:\n  language: fa\n"
+    with open(path, "w") as f:
+        f.write(text)
 PYEOF
-    else
-        printf '\ndisplay:\n  language: fa\n' >> "$CONFIG_FILE"
-    fi
-    ok "زبان پیش‌فرض روی فارسی تنظیم شد ($CONFIG_FILE)."
+    ok "زبان فارسی در config.yaml فعال شد."
 else
     ok "زبان فارسی از قبل در config.yaml تنظیم شده بود."
 fi
@@ -140,8 +159,7 @@ if [ ! -x "$HERMES_BIN" ]; then
 fi
 
 if "$HERMES_BIN" -m hermes_cli.main dashboard --stop >/dev/null 2>&1; then :; fi
-(cd "$HERMES_DIR" && "$HERMES_BIN" -m hermes_cli.main dashboard --no-open >/tmp/hermes-farsi-dashboard-build.log 2>&1 &)
-BUILD_PID=$!
+(cd "$HERMES_DIR" && "$HERMES_BIN" -m hermes_cli.main dashboard --no-open >/tmp/hermes-farsi-dashboard-build.log 2>&1 &) || true
 sleep 2
 log "بازساخت داشبورد در پس‌زمینه شروع شد. برای دیدن پیشرفت:"
 echo "    tail -f /tmp/hermes-farsi-dashboard-build.log"

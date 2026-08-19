@@ -21,23 +21,41 @@ Hermes Agent باید از قبل نصب شده باشد:
 curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
 ```
 
-## روش ۱ (پیشنهادی): نصب به‌عنوان پلاگین داشبورد — بدون rebuild
+## روش ۱ (پیشنهادی): نصب از طریق هرمس (دستور رسمی پلاگین‌ها یا داشبورد) — بدون rebuild
 
-این روش یک پلاگین واقعی داشبورد هرمس است (`plugin/hermes-farsi/`، طبق سیستم
-پلاگین رسمی هرمس در `~/.hermes/plugins/<name>/dashboard/`). هیچ فایل سورسی
-پچ یا rebuild نمی‌شود — فقط یک پوشه کپی و در `config.yaml` فعال می‌شود:
+این پلاگین کاملاً منطبق با سیستم رسمی افزونه‌های Hermes Agent است و بدون نیاز به rebuild یا تغییر سورس کد کار می‌کند.
 
+### الف) نصب مستقیم با دستور Hermes CLI:
+```bash
+hermes plugins install m4tinbeigi-official/hermes-agent-farsi
+```
+
+### ب) نصب از طریق داشبورد وب هرمس:
+1. وارد داشبورد هرمس شوید (مثلاً `http://localhost:9119`).
+2. به بخش **Plugins (افزونه‌ها)** بروید.
+3. در قسمت **Install from GitHub / Git URL** مقدار زیر را وارد کنید و روی **Install** کلیک کنید:
+   ```text
+   m4tinbeigi-official/hermes-agent-farsi
+   ```
+4. وضعیت افزونه را روی **Enable** قرار دهید.
+
+### ج) نصب با اسکریپت تک‌خطی:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/m4tinbeigi-official/hermes-agent-farsi/main/install-plugin.sh | bash
 ```
 
-یا محلی:
-
+یا به‌صورت محلی:
 ```bash
 git clone https://github.com/m4tinbeigi-official/hermes-agent-farsi.git
 cd hermes-agent-farsi
 ./install-plugin.sh
 ```
+
+### مشخصات افزونه در لیست هرمس:
+- **نام افزونه (Name):** `hermes-farsi`
+- **نویسنده (Author):** `Rick Sanchez` (ریک سانچز)
+- **نسخه (Version):** `1.0.0`
+- **توضیحات:** فارسی‌ساز داشبورد هرمس — ترجمه در لحظه، راست‌چین، فونت وزیرمتن (بدون rebuild).
 
 **چطور کار می‌کند:** پلاگین یک اسکریپت جاوااسکریپت است که با `MutationObserver`
 متن‌های شناخته‌شده رابط کاربری را (دیکشنری تولیدشده از حدود ۷۰۰ رشته ترجمه‌شده
