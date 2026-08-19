@@ -24,5 +24,7 @@ SOFTWARE.
 
 This project patches Hermes Agent (https://github.com/NousResearch/hermes-agent),
 which is separately licensed by Nous Research. The bundled Vazirmatn font
-(patch/new-files/web/public/fonts-fa/) is licensed under the SIL Open Font
-License 1.1: https://github.com/rastikerdar/vazirmatn/blob/master/OFL.txt
+(patch/new-files/web/public/fonts-fa/ and plugin/hermes-farsi/dashboard/dist/fonts/)
+was created by Saber Rastikerdar (صابر راستی‌کردار) and is licensed under the
+SIL Open Font License 1.1: https://github.com/rastikerdar/vazirmatn/blob/master/OFL.txt
+Used in loving memory of Saber Rastikerdar.

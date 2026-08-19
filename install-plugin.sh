@@ -7,7 +7,7 @@
 # می‌کند. داشبورد در بارگذاری بعدی (رفرش صفحه) آن را خودکار لود می‌کند.
 #
 # پلاگین با یک MutationObserver متن‌های شناخته‌شده رابط کاربری را به فارسی
-# ترجمه می‌کند، صفحه را راست‌چین می‌کند، و فونت وزیرمتن را بارگذاری می‌کند.
+# ترجمه می‌کند، صفحه را راست‌چین می‌کند، و فونت وزیرمتن (به یاد صابر راستی‌کردار) را بارگذاری می‌کند.
 #
 # کاربرد:
 #   curl -fsSL https://raw.githubusercontent.com/m4tinbeigi-official/hermes-agent-farsi/main/install-plugin.sh | bash
@@ -126,5 +126,6 @@ if "$PYTHON_BIN" -m hermes_cli.main dashboard --stop >/dev/null 2>&1; then :; fi
 
 echo
 ok "نصب کامل شد!"
+echo "  🌸 استفاده شده از فونت وزیرمتن به یاد صابر راستی‌کردار"
 echo "  داشبورد را در http://localhost:9119 باز/رفرش کنید — رابط کاربری خودکار فارسی و راست‌چین می‌شود."
 echo "  غیرفعال‌سازی: hermes plugins disable hermes-farsi"

@@ -2,6 +2,9 @@
  * hermes-farsi — DOM-level Persian localization plugin for the Hermes
  * Agent dashboard.
  *
+ * استفاده شده از فونت وزیرمتن به یاد صابر راستی‌کردار
+ * In memory of Saber Rastikerdar — creator of Vazirmatn font.
+ *
  * Unlike a source patch, this runs against whatever build the user has
  * installed: it walks rendered text nodes and swaps known English UI
  * strings for their Persian equivalent (the dictionary below was
@@ -180,6 +183,9 @@
     } catch (e) {}
 
     if (isFaActive()) {
+      try {
+        console.info("hermes-farsi: استفاده شده از فونت وزیرمتن به یاد صابر راستی‌کردار (In memory of Saber Rastikerdar).");
+      } catch (e) {}
       applyRtlAndFont();
       walk(document.body);
       updateLanguageButton();

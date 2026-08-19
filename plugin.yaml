@@ -1,6 +1,6 @@
 name: hermes-farsi
 version: "1.0.0"
 author: "Rick Sanchez"
-description: "فارسی‌ساز داشبورد هرمس — ترجمه در لحظه، راست‌چین، فونت وزیرمتن (بدون rebuild)."
+description: "فارسی‌ساز داشبورد هرمس — ترجمه در لحظه، راست‌چین، با فونت وزیرمتن به یاد صابر راستی‌کردار (بدون rebuild)."
 repository: "https://github.com/m4tinbeigi-official/hermes-agent-farsi"
 homepage: "https://github.com/m4tinbeigi-official/hermes-agent-farsi"
