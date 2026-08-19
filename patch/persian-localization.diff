@@ -694,7 +694,7 @@ index 30b601e..e82ce3e 100644
 @@ -42,6 +42,33 @@
    src: url('/fonts-terminal/JetBrainsMono-Italic.woff2') format('woff2');
  }
- 
+
 +/* ------------------------------------------------------------------ */
 +/* Vazirmatn — self-hosted Persian/Arabic UI font used when the        */
 +/* dashboard locale is "fa". SIL OFL 1.1.                              */
@@ -725,10 +725,10 @@ index 30b601e..e82ce3e 100644
  /* ------------------------------------------------------------------ */
  /* Hermes Agent — Nous DS with the LENS_0 (Hermes teal) palette applied
     statically as the default dashboard theme. */
-@@ -141,6 +168,35 @@ code, kbd, pre, samp, .font-mono, .font-mono-ui {
+@@ -141,6 +168,77 @@ code, kbd, pre, samp, .font-mono, .font-mono-ui {
    }
  }
- 
+
 +/* ------------------------------------------------------------------ */
 +/* RTL (Persian) — <html dir="rtl"> is set by I18nProvider whenever    */
 +/* the active locale is right-to-left (see i18n/context.tsx). Swaps    */
@@ -742,9 +742,49 @@ index 30b601e..e82ce3e 100644
 +     is applied, and inline styles beat a plain attribute-selector rule.
 +     A stylesheet !important is the only thing that outranks that. */
 +  --theme-font-sans: 'Vazirmatn', system-ui, -apple-system, "Segoe UI",
-+    Tahoma, Arial, sans-serif !important;
++    Roboto, Helvetica, Arial, sans-serif !important;
 +  --theme-font-display: 'Vazirmatn', system-ui, -apple-system, "Segoe UI",
-+    Tahoma, Arial, sans-serif !important;
++    Roboto, Helvetica, Arial, sans-serif !important;
++  --theme-font-serif: 'Vazirmatn', system-ui, -apple-system, "Segoe UI",
++    Roboto, Helvetica, Arial, sans-serif !important;
++  --font-sans: 'Vazirmatn', system-ui, -apple-system, "Segoe UI",
++    Roboto, Helvetica, Arial, sans-serif !important;
++  --font-display: 'Vazirmatn', system-ui, -apple-system, "Segoe UI",
++    Roboto, Helvetica, Arial, sans-serif !important;
++  --font-serif: 'Vazirmatn', system-ui, -apple-system, "Segoe UI",
++    Roboto, Helvetica, Arial, sans-serif !important;
++}
++
++html[dir='rtl'],
++html[dir='rtl'] body,
++html[dir='rtl'] *,
++html[dir='rtl'] *::before,
++html[dir='rtl'] *::after {
++  font-family: 'Vazirmatn', system-ui, -apple-system, "Segoe UI",
++    Roboto, Helvetica, Arial, sans-serif !important;
++}
++
++html[dir='rtl'] .font-sans,
++html[dir='rtl'] .font-serif,
++html[dir='rtl'] .font-display,
++html[dir='rtl'] .font-mondwest,
++html[dir='rtl'] .font-courier,
++html[dir='rtl'] .text-display,
++html[dir='rtl'] [class*='font-sans'],
++html[dir='rtl'] [class*='font-serif'],
++html[dir='rtl'] [class*='font-display'],
++html[dir='rtl'] [class*='font-mondwest'],
++html[dir='rtl'] [class*='font-courier'] {
++  font-family: 'Vazirmatn', system-ui, -apple-system, "Segoe UI",
++    Roboto, Helvetica, Arial, sans-serif !important;
++}
++
++html[dir='rtl'] input,
++html[dir='rtl'] textarea,
++html[dir='rtl'] select,
++html[dir='rtl'] button {
++  font-family: 'Vazirmatn', system-ui, -apple-system, "Segoe UI",
++    Roboto, Helvetica, Arial, sans-serif !important;
 +}
 +
 +html[dir='rtl'] code,
@@ -753,9 +793,11 @@ index 30b601e..e82ce3e 100644
 +html[dir='rtl'] samp,
 +html[dir='rtl'] .font-mono,
 +html[dir='rtl'] .font-mono-ui,
++html[dir='rtl'] [class*='font-mono'],
 +html[dir='rtl'] [class*='xterm'] {
 +  direction: ltr;
 +  unicode-bidi: isolate;
++  font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Monaco, Consolas, "Vazirmatn", monospace !important;
 +}
 +
  /* Nousnet's hermes-agent layout bumps `small` and `code` to readable

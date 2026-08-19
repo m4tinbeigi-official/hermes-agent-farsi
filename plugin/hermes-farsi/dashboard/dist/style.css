@@ -1,4 +1,7 @@
-/* hermes-farsi — injects Vazirmatn + forces RTL across the whole dashboard,
+/* hermes-farsi — فارسی‌ساز داشبورد هرمس
+   استفاده شده از فونت وزیرمتن به یاد صابر راستی‌کردار
+   Bundled Vazirmatn font by Saber Rastikerdar (In memory of Saber Rastikerdar)
+   Injects Vazirmatn + forces RTL across the whole dashboard,
    not just this plugin's own (hidden) tab. Loaded as a global <link> by
    usePlugins.ts, so these rules apply document-wide. */
 
@@ -24,25 +27,103 @@
   font-display: swap;
 }
 
+/* RTL layout */
 html[data-hermes-farsi="1"],
-html[data-hermes-farsi="1"] body {
+html[data-hermes-farsi="1"] body,
+html[dir="rtl"],
+html[dir="rtl"] body {
   direction: rtl;
 }
 
+/* CSS Theme Variables Override */
+html[data-hermes-farsi="1"],
+html[dir="rtl"],
+html[lang="fa"],
+:root[data-hermes-farsi="1"],
+:root[dir="rtl"] {
+  --theme-font-sans: "Vazirmatn", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  --theme-font-display: "Vazirmatn", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  --theme-font-serif: "Vazirmatn", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  --font-sans: "Vazirmatn", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  --font-display: "Vazirmatn", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  --font-serif: "Vazirmatn", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+}
+
+/* Universal Vazirmatn font application to all elements across the entire Hermes dashboard */
+html[data-hermes-farsi="1"],
 html[data-hermes-farsi="1"] body,
+html[data-hermes-farsi="1"] *,
+html[data-hermes-farsi="1"] *::before,
+html[data-hermes-farsi="1"] *::after,
+html[dir="rtl"],
+html[dir="rtl"] body,
+html[dir="rtl"] *,
+html[dir="rtl"] *::before,
+html[dir="rtl"] *::after,
+html[lang="fa"],
+html[lang="fa"] body,
+html[lang="fa"] *,
+html[lang="fa"] *::before,
+html[lang="fa"] *::after {
+  font-family: "Vazirmatn", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+}
+
+/* Explicit overrides for all font utility classes */
+html[data-hermes-farsi="1"] .font-sans,
+html[data-hermes-farsi="1"] .font-serif,
+html[data-hermes-farsi="1"] .font-display,
+html[data-hermes-farsi="1"] .font-mondwest,
+html[data-hermes-farsi="1"] .font-courier,
+html[data-hermes-farsi="1"] .text-display,
+html[data-hermes-farsi="1"] [class*="font-sans"],
+html[data-hermes-farsi="1"] [class*="font-serif"],
+html[data-hermes-farsi="1"] [class*="font-display"],
+html[data-hermes-farsi="1"] [class*="font-mondwest"],
+html[data-hermes-farsi="1"] [class*="font-courier"],
+html[dir="rtl"] .font-sans,
+html[dir="rtl"] .font-serif,
+html[dir="rtl"] .font-display,
+html[dir="rtl"] .font-mondwest,
+html[dir="rtl"] .font-courier,
+html[dir="rtl"] .text-display,
+html[dir="rtl"] [class*="font-sans"],
+html[dir="rtl"] [class*="font-serif"],
+html[dir="rtl"] [class*="font-display"],
+html[dir="rtl"] [class*="font-mondwest"],
+html[dir="rtl"] [class*="font-courier"] {
+  font-family: "Vazirmatn", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+}
+
+/* Form controls & interactive elements */
 html[data-hermes-farsi="1"] input,
 html[data-hermes-farsi="1"] textarea,
 html[data-hermes-farsi="1"] select,
-html[data-hermes-farsi="1"] button {
-  font-family: "Vazirmatn", system-ui, -apple-system, "Segoe UI", Tahoma, Arial, sans-serif !important;
+html[data-hermes-farsi="1"] button,
+html[dir="rtl"] input,
+html[dir="rtl"] textarea,
+html[dir="rtl"] select,
+html[dir="rtl"] button {
+  font-family: "Vazirmatn", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
 }
 
-/* Keep raw code/log/mono content LTR and in its own font — flipping
-   file paths, JSON, and shell output to RTL makes them unreadable. */
+/* Keep raw code/log/mono content LTR with monospace + Vazirmatn fallback */
 html[data-hermes-farsi="1"] code,
+html[data-hermes-farsi="1"] kbd,
 html[data-hermes-farsi="1"] pre,
+html[data-hermes-farsi="1"] samp,
 html[data-hermes-farsi="1"] .font-mono,
-html[data-hermes-farsi="1"] [class*="font-mono"] {
+html[data-hermes-farsi="1"] .font-mono-ui,
+html[data-hermes-farsi="1"] [class*="font-mono"],
+html[data-hermes-farsi="1"] [class*="xterm"],
+html[dir="rtl"] code,
+html[dir="rtl"] kbd,
+html[dir="rtl"] pre,
+html[dir="rtl"] samp,
+html[dir="rtl"] .font-mono,
+html[dir="rtl"] .font-mono-ui,
+html[dir="rtl"] [class*="font-mono"],
+html[dir="rtl"] [class*="xterm"] {
   direction: ltr;
   unicode-bidi: isolate;
+  font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Monaco, Consolas, "Vazirmatn", monospace !important;
 }
