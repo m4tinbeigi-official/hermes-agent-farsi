@@ -20,6 +20,37 @@ index ef9fd4b..2489ef7 100644
  }
  
  _catalog_cache: dict[str, dict[str, str]] = {}
+diff --git a/web/src/App.tsx b/web/src/App.tsx
+index 79f7e48..bdf4632 100644
+--- a/web/src/App.tsx
++++ b/web/src/App.tsx
+@@ -167,7 +167,7 @@ const BUILTIN_NAV_REST: NavItem[] = [
+     label: "Sessions",
+     icon: MessageSquare,
+   },
+-  { path: "/files", label: "Files", icon: FolderOpen },
++  { path: "/files", labelKey: "files", label: "Files", icon: FolderOpen },
+   {
+     path: "/analytics",
+     labelKey: "analytics",
+@@ -185,13 +185,13 @@ const BUILTIN_NAV_REST: NavItem[] = [
+   { path: "/skills", labelKey: "skills", label: "Skills", icon: Package },
+   { path: "/plugins", labelKey: "plugins", label: "Plugins", icon: Puzzle },
+   { path: "/mcp", label: "MCP", icon: Plug },
+-  { path: "/channels", label: "Channels", icon: Radio },
+-  { path: "/webhooks", label: "Webhooks", icon: Webhook },
+-  { path: "/pairing", label: "Pairing", icon: ShieldCheck },
++  { path: "/channels", labelKey: "channels", label: "Channels", icon: Radio },
++  { path: "/webhooks", labelKey: "webhooks", label: "Webhooks", icon: Webhook },
++  { path: "/pairing", labelKey: "pairing", label: "Pairing", icon: ShieldCheck },
+   { path: "/profiles", labelKey: "profiles", label: "Profiles", icon: Users },
+   { path: "/config", labelKey: "config", label: "Config", icon: Settings },
+   { path: "/env", labelKey: "keys", label: "Keys", icon: KeyRound },
+-  { path: "/system", label: "System", icon: Wrench },
++  { path: "/system", labelKey: "system", label: "System", icon: Wrench },
+   {
+     path: "/docs",
+     labelKey: "documentation",
 diff --git a/web/src/components/AutoField.tsx b/web/src/components/AutoField.tsx
 index 18475fe..61e7e38 100644
 --- a/web/src/components/AutoField.tsx
@@ -280,7 +311,7 @@ index fe0e779..704644a 100644
 +export { I18nProvider, useI18n, LOCALE_META, isRtlLocale } from "./context";
  export type { Locale, Translations } from "./types";
 diff --git a/web/src/i18n/types.ts b/web/src/i18n/types.ts
-index a93f921..e349e37 100644
+index a93f921..1cedcca 100644
 --- a/web/src/i18n/types.ts
 +++ b/web/src/i18n/types.ts
 @@ -14,7 +14,8 @@ export type Locale =
@@ -293,7 +324,20 @@ index a93f921..e349e37 100644
  
  export interface Translations {
    // ── Common ──
-@@ -483,6 +484,28 @@ export interface Translations {
+@@ -99,6 +100,12 @@ export interface Translations {
+       plugins: string;
+       sessions: string;
+       skills: string;
++      /** Optional — fall back to the English literal until translated. */
++      files?: string;
++      channels?: string;
++      webhooks?: string;
++      pairing?: string;
++      system?: string;
+     };
+     modelToolsSheetSubtitle: string;
+     modelToolsSheetTitle: string;
+@@ -483,6 +490,28 @@ export interface Translations {
        logging: string;
        discord: string;
        auxiliary: string;
@@ -396,6 +440,33 @@ index 30b601e..e82ce3e 100644
  /* Nousnet's hermes-agent layout bumps `small` and `code` to readable
     dashboard sizes. Keep in sync. */
  small { font-size: 1.0625rem; }
+diff --git a/web/src/lib/resolve-page-title.ts b/web/src/lib/resolve-page-title.ts
+index 2b25e1a..d6b9e36 100644
+--- a/web/src/lib/resolve-page-title.ts
++++ b/web/src/lib/resolve-page-title.ts
+@@ -13,6 +13,11 @@ const BUILTIN: Record<string, keyof Translations["app"]["nav"]> = {
+   "/config": "config",
+   "/env": "keys",
+   "/docs": "documentation",
++  "/files": "files",
++  "/channels": "channels",
++  "/webhooks": "webhooks",
++  "/pairing": "pairing",
++  "/system": "system",
+ };
+ 
+ export function resolvePageTitle(
+@@ -29,8 +34,8 @@ export function resolvePageTitle(
+     return plugin.label;
+   }
+   const key = BUILTIN[normalized];
+-  if (key) {
+-    return t.app.nav[key];
++  if (key && t.app.nav[key]) {
++    return t.app.nav[key] as string;
+   }
+   // Derive title from pathname: "/profiles" → "Profiles"
+   const segment = normalized.slice(1);
 diff --git a/web/src/pages/ChannelsPage.tsx b/web/src/pages/ChannelsPage.tsx
 index 061468e..a8163e7 100644
 --- a/web/src/pages/ChannelsPage.tsx
@@ -780,10 +851,82 @@ index 0f80821..9473d7a 100644
                      <Button
                        className="uppercase"
 diff --git a/web/src/pages/ModelsPage.tsx b/web/src/pages/ModelsPage.tsx
-index 504c8dd..6683e23 100644
+index 504c8dd..8ad0011 100644
 --- a/web/src/pages/ModelsPage.tsx
 +++ b/web/src/pages/ModelsPage.tsx
-@@ -209,6 +209,7 @@ function UseAsMenu({
+@@ -57,6 +57,42 @@ const AUX_TASKS: readonly { key: string; label: string; hint: string }[] = [
+   { key: "curator", label: "Curator", hint: "Skill-usage review" },
+ ] as const;
+ 
++const AUX_TASK_LABELS_FA: Record<string, string> = {
++  vision: "بینایی",
++  web_extract: "استخراج وب",
++  compression: "فشرده‌سازی",
++  skills_hub: "مرکز مهارت‌ها",
++  approval: "تأیید",
++  mcp: "MCP",
++  title_generation: "تولید عنوان",
++  triage_specifier: "مشخص‌کننده اولویت‌بندی",
++  kanban_decomposer: "تجزیه‌کننده کانبان",
++  profile_describer: "توصیف‌کننده پروفایل",
++  curator: "کیوریتور",
++};
++
++const AUX_TASK_HINTS_FA: Record<string, string> = {
++  vision: "تحلیل تصویر",
++  web_extract: "خلاصه‌سازی صفحه",
++  compression: "فشرده‌سازی زمینه",
++  skills_hub: "جستجوی مهارت",
++  approval: "تأیید خودکار هوشمند",
++  mcp: "مسیریابی ابزار MCP",
++  title_generation: "عنوان نشست‌ها",
++  triage_specifier: "تدوین مشخصات کانبان",
++  kanban_decomposer: "تجزیه وظایف",
++  profile_describer: "توضیحات خودکار پروفایل",
++  curator: "بازبینی استفاده از مهارت",
++};
++
++function auxTaskLabel(key: string, fallback: string, locale: string): string {
++  return locale === "fa" ? AUX_TASK_LABELS_FA[key] ?? fallback : fallback;
++}
++
++function auxTaskHint(key: string, fallback: string, locale: string): string {
++  return locale === "fa" ? AUX_TASK_HINTS_FA[key] ?? fallback : fallback;
++}
++
+ function formatTokens(n: number): string {
+   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+@@ -157,6 +193,7 @@ function CapabilityBadges({
+ }: {
+   capabilities: ModelsAnalyticsModelEntry["capabilities"];
+ }) {
++  const { locale } = useI18n();
+   const hasAny =
+     capabilities.supports_tools ||
+     capabilities.supports_vision ||
+@@ -168,17 +205,17 @@ function CapabilityBadges({
+     <div className="flex flex-wrap items-center gap-1.5">
+       {capabilities.supports_tools && (
+         <span className="inline-flex items-center gap-1 bg-success/10 px-1.5 py-0.5 text-xs font-medium text-success">
+-          <Wrench className="h-2.5 w-2.5" /> Tools
++          <Wrench className="h-2.5 w-2.5" /> {locale === "fa" ? "ابزارها" : "Tools"}
+         </span>
+       )}
+       {capabilities.supports_vision && (
+         <span className="inline-flex items-center gap-1 bg-blue-500/10 px-1.5 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400">
+-          <Eye className="h-2.5 w-2.5" /> Vision
++          <Eye className="h-2.5 w-2.5" /> {locale === "fa" ? "بینایی" : "Vision"}
+         </span>
+       )}
+       {capabilities.supports_reasoning && (
+         <span className="inline-flex items-center gap-1 bg-purple-500/10 px-1.5 py-0.5 text-xs font-medium text-purple-600 dark:text-purple-400">
+-          <Brain className="h-2.5 w-2.5" /> Reasoning
++          <Brain className="h-2.5 w-2.5" /> {locale === "fa" ? "استدلال" : "Reasoning"}
+         </span>
+       )}
+       {capabilities.model_family && (
+@@ -209,6 +246,7 @@ function UseAsMenu({
    mainAuxTask: string | null;
    onAssigned(): void;
  }) {
@@ -791,7 +934,48 @@ index 504c8dd..6683e23 100644
    const [open, setOpen] = useState(false);
    const [busy, setBusy] = useState(false);
    const [error, setError] = useState<string | null>(null);
-@@ -299,7 +300,7 @@ function UseAsMenu({
+@@ -224,7 +262,7 @@ function UseAsMenu({
+     confirmExpensiveModel = false,
+   ) => {
+     if (!provider || !model) {
+-      setError("Missing provider/model");
++      setError(locale === "fa" ? "ارائه‌دهنده/مدل مشخص نشده" : "Missing provider/model");
+       return;
+     }
+     setBusy(true);
+@@ -243,7 +281,9 @@ function UseAsMenu({
+           task,
+           message:
+             result.confirm_message ||
+-            "This model has unusually high known pricing.",
++            (locale === "fa"
++              ? "قیمت‌گذاری شناخته‌شده این مدل غیرمعمول بالاست."
++              : "This model has unusually high known pricing."),
+         });
+         return;
+       }
+@@ -277,7 +317,7 @@ function UseAsMenu({
+         className="h-6 px-2 text-xs uppercase"
+         prefix={busy ? <Spinner /> : null}
+       >
+-        Use as <ChevronDown className="h-3 w-3" />
++        {locale === "fa" ? "استفاده به‌عنوان" : "Use as"} <ChevronDown className="h-3 w-3" />
+       </Button>
+       {open && (
+         <div className="absolute right-0 top-full mt-1 z-50 min-w-[220px] border border-border bg-card shadow-lg">
+@@ -289,17 +329,17 @@ function UseAsMenu({
+           >
+             <span className="flex items-center gap-2">
+               <Star className="h-3 w-3" />
+-              Main model
++              {locale === "fa" ? "مدل اصلی" : "Main model"}
+             </span>
+             {isMain && (
+               <span className="text-display text-xs tracking-wider text-primary">
+-                current
++                {locale === "fa" ? "فعلی" : "current"}
+               </span>
+             )}
            </button>
  
            <div className="border-t border-border/50 px-3 py-1.5 text-display text-xs tracking-wider text-text-tertiary">
@@ -800,7 +984,7 @@ index 504c8dd..6683e23 100644
            </div>
  
            <button
-@@ -308,7 +309,7 @@ function UseAsMenu({
+@@ -308,7 +348,7 @@ function UseAsMenu({
              disabled={busy}
              className="flex w-full items-center justify-between px-3 py-1.5 text-xs uppercase hover:bg-muted/50 disabled:opacity-40"
            >
@@ -809,7 +993,166 @@ index 504c8dd..6683e23 100644
            </button>
  
            {AUX_TASKS.map((t) => (
-@@ -704,6 +705,7 @@ function MoaModelsModal({
+@@ -319,10 +359,10 @@ function UseAsMenu({
+               disabled={busy}
+               className="flex w-full items-center justify-between px-3 py-1.5 text-xs uppercase hover:bg-muted/50 disabled:opacity-40"
+             >
+-              <span>{t.label}</span>
++              <span>{auxTaskLabel(t.key, t.label, locale)}</span>
+               {mainAuxTask === t.key && (
+                 <span className="text-display text-xs tracking-wider text-primary">
+-                  current
++                  {locale === "fa" ? "فعلی" : "current"}
+                 </span>
+               )}
+             </button>
+@@ -337,11 +377,11 @@ function UseAsMenu({
+       )}
+       <ConfirmDialog
+         open={!!pendingConfirm}
+-        title="Expensive Model Warning"
++        title={locale === "fa" ? "هشدار مدل گران‌قیمت" : "Expensive Model Warning"}
+         description={pendingConfirm?.message}
+         destructive
+-        confirmLabel="Switch anyway"
+-        cancelLabel="Cancel"
++        confirmLabel={locale === "fa" ? "بااین‌حال تغییر بده" : "Switch anyway"}
++        cancelLabel={locale === "fa" ? "لغو" : "Cancel"}
+         loading={busy}
+         onCancel={() => setPendingConfirm(null)}
+         onConfirm={() => {
+@@ -374,7 +414,7 @@ function ModelCard({
+   onAssigned(): void;
+   showTokens: boolean;
+ }) {
+-  const { t } = useI18n();
++  const { t, locale } = useI18n();
+   const provider = entry.provider || modelVendor(entry.model);
+   const totalTokens = entry.input_tokens + entry.output_tokens;
+   const caps = entry.capabilities;
+@@ -406,12 +446,12 @@ function ModelCard({
+               </CardTitle>
+               {isMain && (
+                 <span className="inline-flex items-center gap-0.5 bg-primary/15 px-1.5 py-0.5 text-display text-xs font-medium tracking-wider text-primary">
+-                  <Star className="h-2.5 w-2.5" /> main
++                  <Star className="h-2.5 w-2.5" /> {locale === "fa" ? "اصلی" : "main"}
+                 </span>
+               )}
+               {mainAuxTask && (
+                 <span className="inline-flex items-center bg-purple-500/10 px-1.5 py-0.5 text-display text-xs font-medium tracking-wider text-purple-600 dark:text-purple-400">
+-                  aux · {mainAuxTask}
++                  {locale === "fa" ? "کمکی" : "aux"} · {auxTaskLabel(mainAuxTask, mainAuxTask, locale)}
+                 </span>
+               )}
+             </div>
+@@ -551,6 +591,7 @@ function AuxiliaryTasksModal({
+   onSaved(): void;
+   onClose(): void;
+ }) {
++  const { locale } = useI18n();
+   const [picker, setPicker] = useState<PickerTarget | null>(null);
+   const [resetBusy, setResetBusy] = useState(false);
+   const [confirmReset, setConfirmReset] = useState(false);
+@@ -598,7 +639,7 @@ function AuxiliaryTasksModal({
+               id="aux-modal-title"
+               className="font-mondwest text-display text-base tracking-wider"
+             >
+-              Auxiliary Tasks
++              {locale === "fa" ? "وظایف کمکی" : "Auxiliary Tasks"}
+             </h2>
+             <Button
+               size="sm"
+@@ -608,14 +649,25 @@ function AuxiliaryTasksModal({
+               className="h-6 text-xs uppercase"
+               prefix={resetBusy ? <Spinner /> : null}
+             >
+-              Reset all to auto
++              {locale === "fa" ? "بازنشانی همه به خودکار" : "Reset all to auto"}
+             </Button>
+           </div>
+           <p className="text-xs text-text-secondary mt-2">
+-            Auxiliary tasks handle side-jobs like vision, session search, and
+-            compression. <span className="font-mono">auto</span> means
+-            &quot;use the main model&quot;. Override per-task when you want a
+-            cheap/fast model for a specific job.
++            {locale === "fa" ? (
++              <>
++                وظایف کمکی کارهای جانبی مثل بینایی، جستجوی نشست، و فشرده‌سازی را
++                انجام می‌دهند. <span className="font-mono">auto</span> یعنی
++                «از مدل اصلی استفاده کن». برای یک کار خاص می‌توانید مدلی
++                ارزان‌تر/سریع‌تر جایگزین کنید.
++              </>
++            ) : (
++              <>
++                Auxiliary tasks handle side-jobs like vision, session search, and
++                compression. <span className="font-mono">auto</span> means
++                &quot;use the main model&quot;. Override per-task when you want a
++                cheap/fast model for a specific job.
++              </>
++            )}
+           </p>
+         </header>
+ 
+@@ -631,15 +683,15 @@ function AuxiliaryTasksModal({
+               >
+                 <div className="min-w-0 flex-1">
+                   <div className="flex items-baseline gap-2">
+-                    <span className="text-xs font-medium">{t.label}</span>
++                    <span className="text-xs font-medium">{auxTaskLabel(t.key, t.label, locale)}</span>
+                     <span className="text-xs text-text-tertiary">
+-                      {t.hint}
++                      {auxTaskHint(t.key, t.hint, locale)}
+                     </span>
+                   </div>
+                   <div className="text-xs font-mono text-text-secondary truncate">
+                     {isAuto
+-                      ? "auto (use main model)"
+-                      : `${cur?.provider} · ${cur?.model || "(provider default)"}`}
++                      ? (locale === "fa" ? "خودکار (استفاده از مدل اصلی)" : "auto (use main model)")
++                      : `${cur?.provider} · ${cur?.model || (locale === "fa" ? "(پیش‌فرض ارائه‌دهنده)" : "(provider default)")}`}
+                   </div>
+                 </div>
+                 <Button
+@@ -648,7 +700,7 @@ function AuxiliaryTasksModal({
+                   onClick={() => setPicker({ kind: "aux", task: t.key })}
+                   className="h-6 text-xs uppercase"
+                 >
+-                  Change
++                  {locale === "fa" ? "تغییر" : "Change"}
+                 </Button>
+               </div>
+             );
+@@ -660,9 +712,8 @@ function AuxiliaryTasksModal({
+             key={`picker-${refreshKey}`}
+             loader={api.getModelOptions}
+             alwaysGlobal
+-            title={`Set Auxiliary: ${
+-              AUX_TASKS.find((t) => t.key === picker.task)?.label ??
+-              picker.task
++            title={`${locale === "fa" ? "تنظیم وظیفه کمکی" : "Set Auxiliary"}: ${
++              auxTaskLabel(picker.task, AUX_TASKS.find((t) => t.key === picker.task)?.label ?? picker.task, locale)
+             }`}
+             onApply={async ({ provider, model, confirmExpensiveModel }) => {
+               const result = await api.setModelAssignment({
+@@ -682,10 +733,14 @@ function AuxiliaryTasksModal({
+           open={confirmReset}
+           onCancel={() => setConfirmReset(false)}
+           onConfirm={() => void resetAllAux()}
+-          title="Reset auxiliary models"
+-          description="Reset every auxiliary task to 'auto'? This overrides any per-task overrides you've set."
++          title={locale === "fa" ? "بازنشانی مدل‌های کمکی" : "Reset auxiliary models"}
++          description={
++            locale === "fa"
++              ? "همه وظایف کمکی به «خودکار» بازنشانی شوند؟ این کار همه تنظیمات دستی هر وظیفه را بازنویسی می‌کند."
++              : "Reset every auxiliary task to 'auto'? This overrides any per-task overrides you've set."
++          }
+           destructive
+-          confirmLabel="Reset all"
++          confirmLabel={locale === "fa" ? "بازنشانی همه" : "Reset all"}
+           loading={resetBusy}
+         />
+       </div>
+@@ -704,6 +759,7 @@ function MoaModelsModal({
    onClose(): void;
    onSaved(next: MoaConfigResponse): void;
  }) {
@@ -817,7 +1160,7 @@ index 504c8dd..6683e23 100644
    const [draft, setDraft] = useState<MoaConfigResponse>(config);
    const [selected, setSelected] = useState(config.default_preset || Object.keys(config.presets)[0] || "default");
    const [newName, setNewName] = useState("");
-@@ -782,11 +784,13 @@ function MoaModelsModal({
+@@ -782,11 +838,13 @@ function MoaModelsModal({
      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4">
        <Card className="max-h-[85vh] w-full max-w-2xl overflow-auto">
          <CardHeader>
@@ -833,7 +1176,7 @@ index 504c8dd..6683e23 100644
            </p>
  
            <div className="flex flex-wrap items-center gap-2">
-@@ -797,45 +801,45 @@ function MoaModelsModal({
+@@ -797,45 +855,45 @@ function MoaModelsModal({
              >
                {presetNames.map((name) => <option key={name} value={name}>{name}</option>)}
              </select>
@@ -874,7 +1217,8 @@ index 504c8dd..6683e23 100644
            </div>
  
            <div className="space-y-2">
-             <div className="text-display text-xs font-medium tracking-wider">Aggregator</div>
+-            <div className="text-display text-xs font-medium tracking-wider">Aggregator</div>
++            <div className="text-display text-xs font-medium tracking-wider">{locale === "fa" ? "تجمیع‌کننده" : "Aggregator"}</div>
              <div className="flex items-center gap-2 border border-border/50 bg-muted/20 px-3 py-2">
                <div className="min-w-0 flex-1 truncate font-mono text-xs text-text-secondary">{slotLabel(preset.aggregator)}</div>
 -              <Button size="sm" outlined onClick={() => setPicker({ kind: "aggregator" })}>Change</Button>
@@ -891,7 +1235,24 @@ index 504c8dd..6683e23 100644
            </div>
          </CardContent>
        </Card>
-@@ -875,6 +879,7 @@ function ModelSettingsPanel({
+@@ -844,10 +902,14 @@ function MoaModelsModal({
+           key={`moa-picker-${refreshKey}-${selected}-${picker.kind}-${picker.kind === "reference" ? picker.index : "agg"}`}
+           loader={api.getModelOptions}
+           alwaysGlobal
+-          title="Select MoA Model"
++          title={locale === "fa" ? "انتخاب مدل MoA" : "Select MoA Model"}
+           onApply={async ({ provider, model }) => {
+             if ((provider || "").toLowerCase() === "moa") {
+-              setError("MoA presets can't reference or aggregate the Mixture of Agents provider (no recursive MoA).");
++              setError(
++                locale === "fa"
++                  ? "پریست‌های MoA نمی‌توانند به ارائه‌دهنده Mixture of Agents ارجاع یا آن را تجمیع کنند (بدون MoA بازگشتی)."
++                  : "MoA presets can't reference or aggregate the Mixture of Agents provider (no recursive MoA).",
++              );
+               return;
+             }
+             setError(null);
+@@ -875,6 +937,7 @@ function ModelSettingsPanel({
    refreshKey: number;
    onSaved(): void;
  }) {
@@ -899,15 +1260,152 @@ index 504c8dd..6683e23 100644
    const [auxModalOpen, setAuxModalOpen] = useState(false);
    const [moaModalOpen, setMoaModalOpen] = useState(false);
    const [moa, setMoa] = useState<MoaConfigResponse | null>(null);
-@@ -924,7 +929,7 @@ function ModelSettingsPanel({
+@@ -924,9 +987,9 @@ function ModelSettingsPanel({
        <CardHeader className="min-w-0 pb-3">
          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
            <Settings2 className="h-4 w-4 shrink-0 text-muted-foreground" />
 -          <CardTitle className="text-sm">Model Settings</CardTitle>
 +          <CardTitle className="text-sm">{locale === "fa" ? "تنظیمات مدل" : "Model Settings"}</CardTitle>
            <span className="max-w-full min-w-0 text-xs text-text-secondary [overflow-wrap:anywhere]">
-             applies to new sessions
+-            applies to new sessions
++            {locale === "fa" ? "برای نشست‌های جدید اعمال می‌شود" : "applies to new sessions"}
            </span>
+         </div>
+       </CardHeader>
+@@ -938,13 +1001,13 @@ function ModelSettingsPanel({
+             <div className="flex items-center gap-2 mb-0.5">
+               <Star className="h-3 w-3 text-primary" />
+               <span className="text-display text-xs font-medium tracking-wider">
+-                Main model
++                {locale === "fa" ? "مدل اصلی" : "Main model"}
+               </span>
+             </div>
+             <div className="text-xs font-mono text-text-secondary truncate">
+-              {mainProv || "(unset)"}
++              {mainProv || (locale === "fa" ? "(تنظیم‌نشده)" : "(unset)")}
+               {mainProv && mainModel && " · "}
+-              {mainModel || "(unset)"}
++              {mainModel || (locale === "fa" ? "(تنظیم‌نشده)" : "(unset)")}
+             </div>
+           </div>
+           <Button
+@@ -952,7 +1015,7 @@ function ModelSettingsPanel({
+             onClick={() => setPicker({ kind: "main" })}
+             className="shrink-0 self-start text-xs uppercase sm:self-center"
+           >
+-            Change
++            {locale === "fa" ? "تغییر" : "Change"}
+           </Button>
+         </div>
+ 
+@@ -962,11 +1025,15 @@ function ModelSettingsPanel({
+             <div className="flex items-center gap-2 mb-0.5">
+               <Cpu className="h-3 w-3 text-text-tertiary" />
+               <span className="text-display text-xs font-medium tracking-wider">
+-                Auxiliary tasks
++                {locale === "fa" ? "وظایف کمکی" : "Auxiliary tasks"}
+               </span>
+             </div>
+             <div className="text-xs font-mono text-text-secondary truncate">
+-              {auxOverrideCount > 0
++              {locale === "fa"
++                ? auxOverrideCount > 0
++                  ? `${auxOverrideCount} بازنویسی · ${AUX_TASKS.length - auxOverrideCount} خودکار`
++                  : `${AUX_TASKS.length} وظیفه · همه خودکار`
++                : auxOverrideCount > 0
+                 ? `${auxOverrideCount} override${auxOverrideCount > 1 ? "s" : ""} · ${AUX_TASKS.length - auxOverrideCount} auto`
+                 : `${AUX_TASKS.length} tasks · all auto`}
+             </div>
+@@ -977,7 +1044,7 @@ function ModelSettingsPanel({
+             onClick={() => setAuxModalOpen(true)}
+             className="shrink-0 self-start text-xs uppercase sm:self-center"
+           >
+-            Configure
++            {locale === "fa" ? "پیکربندی" : "Configure"}
+           </Button>
+         </div>
+ 
+@@ -986,13 +1053,15 @@ function ModelSettingsPanel({
+             <div className="flex items-center gap-2 mb-0.5">
+               <Brain className="h-3 w-3 text-text-tertiary" />
+               <span className="text-display text-xs font-medium tracking-wider">
+-                Mixture of Agents
++                {locale === "fa" ? "ترکیب ایجنت‌ها (MoA)" : "Mixture of Agents"}
+               </span>
+             </div>
+             <div className="text-xs font-mono text-text-secondary truncate">
+               {moa
+-                ? `${moa.reference_models.length} reference${moa.reference_models.length === 1 ? "" : "s"} · ${moa.aggregator.provider}/${shortModelName(moa.aggregator.model)}`
+-                : "not loaded"}
++                ? locale === "fa"
++                  ? `${moa.reference_models.length} مرجع · ${moa.aggregator.provider}/${shortModelName(moa.aggregator.model)}`
++                  : `${moa.reference_models.length} reference${moa.reference_models.length === 1 ? "" : "s"} · ${moa.aggregator.provider}/${shortModelName(moa.aggregator.model)}`
++                : locale === "fa" ? "بارگذاری نشده" : "not loaded"}
+             </div>
+           </div>
+           <Button
+@@ -1002,7 +1071,7 @@ function ModelSettingsPanel({
+             disabled={!moa}
+             className="shrink-0 self-start text-xs uppercase sm:self-center"
+           >
+-            Configure
++            {locale === "fa" ? "پیکربندی" : "Configure"}
+           </Button>
+         </div>
+ 
+@@ -1011,7 +1080,7 @@ function ModelSettingsPanel({
+             key={`picker-${refreshKey}`}
+             loader={api.getModelOptions}
+             alwaysGlobal
+-            title="Set Main Model"
++            title={locale === "fa" ? "تنظیم مدل اصلی" : "Set Main Model"}
+             onApply={async ({ provider, model, confirmExpensiveModel }) => {
+               const result = await applyAssignment({
+                 confirmExpensiveModel,
+@@ -1073,7 +1142,7 @@ export default function ModelsPage() {
+   // hermes_cli/config.py for the rationale: the numbers exclude auxiliary
+   // calls and retries, so they're misleading next to provider billing.
+   const [showTokens, setShowTokens] = useState(false);
+-  const { t } = useI18n();
++  const { t, locale } = useI18n();
+   const { setAfterTitle, setEnd } = usePageHeader();
+ 
+   useEffect(() => {
+@@ -1240,13 +1309,27 @@ export default function ModelsPage() {
+               </div>
+               {!showTokens && (
+                 <p className="mt-4 text-xs text-text-tertiary leading-relaxed">
+-                  Token & cost analytics are hidden because the local counts
+-                  exclude auxiliary calls (compression, vision, web extract,
+-                  …) and provider retries, so they diverge from your provider
+-                  bill. Enable{" "}
+-                  <span className="font-mono">dashboard.show_token_analytics</span>{" "}
+-                  in <a href="/config" className="underline">Config</a> to
+-                  show the local debug estimate anyway.
++                  {locale === "fa" ? (
++                    <>
++                      آمار توکن و هزینه پنهان است چون شمارش‌های محلی تماس‌های
++                      کمکی (فشرده‌سازی، بینایی، استخراج وب، …) و تلاش‌های مجدد
++                      ارائه‌دهنده را حذف می‌کنند، پس با صورت‌حساب واقعی
++                      ارائه‌دهنده شما تفاوت دارند.{" "}
++                      <span className="font-mono">dashboard.show_token_analytics</span>{" "}
++                      را در <a href="/config" className="underline">پیکربندی</a> فعال
++                      کنید تا تخمین محلی دیباگ را با این‌حال ببینید.
++                    </>
++                  ) : (
++                    <>
++                      Token & cost analytics are hidden because the local counts
++                      exclude auxiliary calls (compression, vision, web extract,
++                      …) and provider retries, so they diverge from your provider
++                      bill. Enable{" "}
++                      <span className="font-mono">dashboard.show_token_analytics</span>{" "}
++                      in <a href="/config" className="underline">Config</a> to
++                      show the local debug estimate anyway.
++                    </>
++                  )}
+                 </p>
+               )}
+             </CardContent>
 diff --git a/web/src/pages/PluginsPage.tsx b/web/src/pages/PluginsPage.tsx
 index 52baf89..9df656f 100644
 --- a/web/src/pages/PluginsPage.tsx
