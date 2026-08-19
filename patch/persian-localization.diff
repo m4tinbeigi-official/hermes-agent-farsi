@@ -20,6 +20,327 @@ index ef9fd4b..2489ef7 100644
  }
  
  _catalog_cache: dict[str, dict[str, str]] = {}
+diff --git a/ui-tui/packages/hermes-ink/src/ink/bidi.ts b/ui-tui/packages/hermes-ink/src/ink/bidi.ts
+index 28edace..545ce44 100644
+--- a/ui-tui/packages/hermes-ink/src/ink/bidi.ts
++++ b/ui-tui/packages/hermes-ink/src/ink/bidi.ts
+@@ -1,18 +1,13 @@
+ /**
+- * Bidirectional text reordering for terminal rendering.
++ * Bidirectional text reordering and Arabic/Persian shaping for terminal rendering.
+  *
+- * Terminals on Windows do not implement the Unicode Bidi Algorithm,
+- * so RTL text (Hebrew, Arabic, etc.) appears reversed. This module
+- * applies the bidi algorithm to reorder ClusteredChar arrays from
+- * logical order to visual order before Ink's LTR cell placement loop.
+- *
+- * On macOS terminals (Terminal.app, iTerm2) bidi works natively.
+- * Windows Terminal (including WSL) does not implement bidi
+- * (https://github.com/microsoft/terminal/issues/538).
+- *
+- * Detection: Windows Terminal sets WT_SESSION; native Windows cmd/conhost
+- * also lacks bidi. We enable bidi reordering when running on Windows or
+- * inside Windows Terminal (covers WSL).
++ * Terminal grids place characters cell-by-cell from left to right and lack native
++ * OpenType/HarfBuzz font shaping engines. For RTL languages with cursive joining
++ * scripts (Persian, Arabic, Urdu, Hebrew), this module:
++ * 1. Shapes Arabic/Persian letters into their contextual positional forms (Initial,
++ *    Medial, Final, Isolated, plus Lam-Alef ligatures).
++ * 2. Applies the Unicode Bidirectional Algorithm (UAX #9 via bidi-js) to reorder
++ *    ClusteredChar arrays from logical order to visual order.
+  */
+ import bidiFactory from 'bidi-js'
+ 
+@@ -23,66 +18,225 @@ type ClusteredChar = {
+   hyperlink: string | undefined
+ }
+ 
+-let bidiInstance: ReturnType<typeof bidiFactory> | undefined
+-let needsSoftwareBidi: boolean | undefined
+-
+-function needsBidi(): boolean {
+-  if (needsSoftwareBidi === undefined) {
+-    needsSoftwareBidi =
+-      process.platform === 'win32' ||
+-      typeof process.env['WT_SESSION'] === 'string' || // WSL in Windows Terminal
+-      process.env['TERM_PROGRAM'] === 'vscode' // VS Code integrated terminal (xterm.js)
+-  }
++type JoiningType = 'D' | 'R' | 'T' | 'U' | 'C'
++
++type CharEntry = {
++  type: JoiningType
++  // [Isolated, Final, Initial, Medial]
++  forms: [string, string, string, string]
++}
+ 
+-  return needsSoftwareBidi
++// Character forms table for Arabic and Persian/Farsi Unicode blocks
++const CHAR_TABLE: Record<string, CharEntry> = {
++  // Arabic Standard
++  '\u0622': { type: 'R', forms: ['\uFE81', '\uFE82', '\uFE81', '\uFE82'] }, // آ
++  '\u0623': { type: 'R', forms: ['\uFE83', '\uFE84', '\uFE83', '\uFE84'] }, // أ
++  '\u0624': { type: 'R', forms: ['\uFE85', '\uFE86', '\uFE85', '\uFE86'] }, // ؤ
++  '\u0625': { type: 'R', forms: ['\uFE87', '\uFE88', '\uFE87', '\uFE88'] }, // إ
++  '\u0626': { type: 'D', forms: ['\uFE89', '\uFE8A', '\uFE8B', '\uFE8C'] }, // ئ
++  '\u0627': { type: 'R', forms: ['\uFE8D', '\uFE8E', '\uFE8D', '\uFE8E'] }, // ا
++  '\u0628': { type: 'D', forms: ['\uFE8F', '\uFE90', '\uFE91', '\uFE92'] }, // ب
++  '\u0629': { type: 'R', forms: ['\uFE93', '\uFE94', '\uFE93', '\uFE94'] }, // ة
++  '\u062A': { type: 'D', forms: ['\uFE95', '\uFE96', '\uFE97', '\uFE98'] }, // ت
++  '\u062B': { type: 'D', forms: ['\uFE99', '\uFE9A', '\uFE9B', '\uFE9C'] }, // ث
++  '\u062C': { type: 'D', forms: ['\uFE9D', '\uFE9E', '\uFE9F', '\uFEA0'] }, // ج
++  '\u062D': { type: 'D', forms: ['\uFEA1', '\uFEA2', '\uFEA3', '\uFEA4'] }, // ح
++  '\u062E': { type: 'D', forms: ['\uFEA5', '\uFEA6', '\uFEA7', '\uFEA8'] }, // خ
++  '\u062F': { type: 'R', forms: ['\uFEA9', '\uFEAA', '\uFEA9', '\uFEAA'] }, // د
++  '\u0630': { type: 'R', forms: ['\uFEAB', '\uFEAC', '\uFEAB', '\uFEAC'] }, // ذ
++  '\u0631': { type: 'R', forms: ['\uFEAD', '\uFEAE', '\uFEAD', '\uFEAE'] }, // ر
++  '\u0632': { type: 'R', forms: ['\uFEAF', '\uFEB0', '\uFEAF', '\uFEB0'] }, // ز
++  '\u0633': { type: 'D', forms: ['\uFEB1', '\uFEB2', '\uFEB3', '\uFEB4'] }, // س
++  '\u0634': { type: 'D', forms: ['\uFEB5', '\uFEB6', '\uFEB7', '\uFEB8'] }, // ش
++  '\u0635': { type: 'D', forms: ['\uFEB9', '\uFEBA', '\uFEBB', '\uFEBC'] }, // ص
++  '\u0636': { type: 'D', forms: ['\uFEBD', '\uFEBE', '\uFEBF', '\uFEC0'] }, // ض
++  '\u0637': { type: 'D', forms: ['\uFEC1', '\uFEC2', '\uFEC3', '\uFEC4'] }, // ط
++  '\u0638': { type: 'D', forms: ['\uFEC5', '\uFEC6', '\uFEC7', '\uFEC8'] }, // ظ
++  '\u0639': { type: 'D', forms: ['\uFEC9', '\uFECA', '\uFECB', '\uFECC'] }, // ع
++  '\u063A': { type: 'D', forms: ['\uFECD', '\uFECE', '\uFECF', '\uFED0'] }, // غ
++  '\u0640': { type: 'D', forms: ['\u0640', '\u0640', '\u0640', '\u0640'] }, // ـ (tatweel/kashida)
++  '\u0641': { type: 'D', forms: ['\uFED1', '\uFED2', '\uFED3', '\uFED4'] }, // ف
++  '\u0642': { type: 'D', forms: ['\uFED5', '\uFED6', '\uFED7', '\uFED8'] }, // ق
++  '\u0643': { type: 'D', forms: ['\uFED9', '\uFEDA', '\uFEDB', '\uFEDC'] }, // ك
++  '\u0644': { type: 'D', forms: ['\uFEDD', '\uFEDE', '\uFEDF', '\uFEE0'] }, // ل
++  '\u0645': { type: 'D', forms: ['\uFEE1', '\uFEE2', '\uFEE3', '\uFEE4'] }, // م
++  '\u0646': { type: 'D', forms: ['\uFEE5', '\uFEE6', '\uFEE7', '\uFEE8'] }, // ن
++  '\u0647': { type: 'D', forms: ['\uFEE9', '\uFEEA', '\uFEEB', '\uFEEC'] }, // ه
++  '\u0648': { type: 'R', forms: ['\uFEED', '\uFEEE', '\uFEED', '\uFEEE'] }, // و
++  '\u0649': { type: 'R', forms: ['\uFEEF', '\uFEF0', '\uFEEF', '\uFEF0'] }, // ى
++  '\u064A': { type: 'D', forms: ['\uFEF1', '\uFEF2', '\uFEF3', '\uFEF4'] }, // ي
++
++  // Persian / Farsi specific
++  '\u067E': { type: 'D', forms: ['\uFB56', '\uFB57', '\uFB58', '\uFB59'] }, // پ
++  '\u0686': { type: 'D', forms: ['\uFB7A', '\uFB7B', '\uFB7C', '\uFB7D'] }, // چ
++  '\u0698': { type: 'R', forms: ['\uFB8A', '\uFB8B', '\uFB8A', '\uFB8B'] }, // ژ
++  '\u06A9': { type: 'D', forms: ['\uFB8E', '\uFB8F', '\uFB90', '\uFB91'] }, // ک
++  '\u06AF': { type: 'D', forms: ['\uFB92', '\uFB93', '\uFB94', '\uFB95'] }, // گ
++  '\u06CC': { type: 'D', forms: ['\uFBFC', '\uFBFD', '\uFBFE', '\uFBFF'] }, // ی
++  '\u06C0': { type: 'R', forms: ['\uFBA4', '\uFBA5', '\uFBA4', '\uFBA5'] }, // ۀ
++  '\u06C1': { type: 'D', forms: ['\uFBA6', '\uFBA7', '\uFBA8', '\uFBA9'] }, // ھ
++  '\u0679': { type: 'D', forms: ['\uFB66', '\uFB67', '\uFB68', '\uFB69'] }, // ٹ
++  '\u0688': { type: 'R', forms: ['\uFB88', '\uFB89', '\uFB88', '\uFB89'] }, // ڈ
++  '\u0691': { type: 'R', forms: ['\uFB8C', '\uFB8D', '\uFB8C', '\uFB8D'] }, // ڑ
++  '\u06BA': { type: 'R', forms: ['\uFB9E', '\uFB9F', '\uFB9E', '\uFB9F'] }, // ں
++  '\u06D2': { type: 'R', forms: ['\uFBAE', '\uFBAF', '\uFBAE', '\uFBAF'] }, // ے
++}
++
++// Lam-Alef ligatures: [Isolated, Final]
++const LAM_ALEF_MAP: Record<string, [string, string]> = {
++  '\u0622': ['\uFEF5', '\uFEF6'], // ل + آ
++  '\u0623': ['\uFEF7', '\uFEF8'], // ل + أ
++  '\u0625': ['\uFEF9', '\uFEFA'], // ل + إ
++  '\u0627': ['\uFEFB', '\uFEFC'], // ل + ا
+ }
+ 
++let bidiInstance: ReturnType<typeof bidiFactory> | undefined
++
+ function getBidi() {
+   if (!bidiInstance) {
+     bidiInstance = bidiFactory()
+   }
+-
+   return bidiInstance
+ }
+ 
++function isTransparentChar(ch: string): boolean {
++  if (!ch) return false
++  const code = ch.charCodeAt(0)
++  // Tashkeel / Harakat / Diacritics
++  return (code >= 0x064b && code <= 0x065f) || code === 0x0670 || code === 0x0618 || code === 0x0619 || code === 0x061a
++}
++
++/**
++ * Reshapes an array of ClusteredChar containing Arabic or Persian letters
++ * into their connected contextual glyphs (Presentation Forms-A and Forms-B).
++ */
++export function shapeArabicCharacters(characters: ClusteredChar[]): ClusteredChar[] {
++  const result: ClusteredChar[] = []
++
++  for (let i = 0; i < characters.length; i++) {
++    const current = characters[i]!
++    const ch = current.value
++
++    if (isTransparentChar(ch)) {
++      result.push(current)
++      continue
++    }
++
++    // Check for Lam-Alef ligature
++    if (ch === '\u0644' && i + 1 < characters.length) {
++      let nextIdx = i + 1
++      while (nextIdx < characters.length && isTransparentChar(characters[nextIdx]!.value)) {
++        nextIdx++
++      }
++
++      if (nextIdx < characters.length && LAM_ALEF_MAP[characters[nextIdx]!.value]) {
++        const alefChar = characters[nextIdx]!.value
++        // Check if Lam connects to previous character
++        let prevIdx = i - 1
++        while (prevIdx >= 0 && isTransparentChar(characters[prevIdx]!.value)) {
++          prevIdx--
++        }
++        const prevCh = prevIdx >= 0 ? characters[prevIdx]!.value : null
++        const prevEntry = prevCh ? CHAR_TABLE[prevCh] : null
++        const connectPrev = Boolean(prevEntry && prevEntry.type === 'D')
++
++        const ligature = connectPrev ? LAM_ALEF_MAP[alefChar]![1] : LAM_ALEF_MAP[alefChar]![0]
++
++        // Emit ligature with the Lam character's style
++        result.push({
++          value: ligature,
++          width: 1,
++          styleId: current.styleId,
++          hyperlink: current.hyperlink,
++        })
++
++        i = nextIdx // Skip the merged Alef
++        continue
++      }
++    }
++
++    const entry = CHAR_TABLE[ch]
++    if (!entry) {
++      result.push(current)
++      continue
++    }
++
++    // Determine connection to previous character
++    let prevIdx = i - 1
++    while (prevIdx >= 0 && isTransparentChar(characters[prevIdx]!.value)) {
++      prevIdx--
++    }
++    const prevCh = prevIdx >= 0 ? characters[prevIdx]!.value : null
++    const prevEntry = prevCh ? CHAR_TABLE[prevCh] : null
++    const connectPrev = Boolean(prevEntry && prevEntry.type === 'D')
++
++    // Determine connection to next character
++    let nextIdx = i + 1
++    while (nextIdx < characters.length && isTransparentChar(characters[nextIdx]!.value)) {
++      nextIdx++
++    }
++    const nextCh = nextIdx < characters.length ? characters[nextIdx]!.value : null
++    const nextEntry = nextCh ? CHAR_TABLE[nextCh] : null
++    const connectNext =
++      entry.type === 'D' &&
++      Boolean(nextEntry && (nextEntry.type === 'D' || nextEntry.type === 'R'))
++
++    let formIdx = 0
++    if (connectPrev && connectNext) {
++      formIdx = 3 // Medial
++    } else if (connectPrev && !connectNext) {
++      formIdx = 1 // Final
++    } else if (!connectPrev && connectNext) {
++      formIdx = 2 // Initial
++    } else {
++      formIdx = 0 // Isolated
++    }
++
++    result.push({
++      value: entry.forms[formIdx],
++      width: current.width,
++      styleId: current.styleId,
++      hyperlink: current.hyperlink,
++    })
++  }
++
++  return result
++}
++
+ /**
+  * Reorder an array of ClusteredChars from logical order to visual order
+- * using the Unicode Bidi Algorithm. Active on terminals that lack native
+- * bidi support (Windows Terminal, conhost, WSL).
+- *
+- * Returns the same array on bidi-capable terminals (no-op).
++ * using the Unicode Bidi Algorithm and Arabic/Persian shaping.
+  */
+ export function reorderBidi(characters: ClusteredChar[]): ClusteredChar[] {
+-  if (!needsBidi() || characters.length === 0) {
++  if (process.env['HERMES_DISABLE_BIDI'] === '1' || characters.length === 0) {
+     return characters
+   }
+ 
+-  // Build a plain string from the clustered chars to run through bidi
++  // Build a plain string from the clustered chars to check for RTL characters
+   const plainText = characters.map(c => c.value).join('')
+-
+-  // Check if there are any RTL characters — skip bidi if pure LTR
+   if (!hasRTLCharacters(plainText)) {
+     return characters
+   }
+ 
++  // Step 1: Shape Arabic / Persian characters into connected glyphs
++  const shaped = shapeArabicCharacters(characters)
++
++  // Step 2: Calculate bidi embedding levels on the shaped text
++  const shapedText = shaped.map(c => c.value).join('')
+   const bidi = getBidi()
+-  const { levels } = bidi.getEmbeddingLevels(plainText, 'auto')
++  const { levels } = bidi.getEmbeddingLevels(shapedText, 'auto')
+ 
+-  // Map bidi levels back to ClusteredChar indices.
+-  // Each ClusteredChar may be multiple code units in the joined string.
++  // Map bidi levels back to ClusteredChar indices
+   const charLevels: number[] = []
+   let offset = 0
+ 
+-  for (let i = 0; i < characters.length; i++) {
+-    charLevels.push(levels[offset]!)
+-    offset += characters[i]!.value.length
++  for (let i = 0; i < shaped.length; i++) {
++    charLevels.push(levels[offset] ?? 0)
++    offset += shaped[i]!.value.length
+   }
+ 
+-  // Get reorder segments from bidi-js, but we need to work at the
+-  // ClusteredChar level, not the string level. We'll implement the
+-  // standard bidi reordering: find the max level, then for each level
+-  // from max down to 1, reverse all contiguous runs >= that level.
+-  const reordered = [...characters]
++  // Step 3: Standard bidi reordering from max level down to 1
++  const reordered = [...shaped]
+   const maxLevel = Math.max(...charLevels)
+ 
+   for (let level = maxLevel; level >= 1; level--) {
+@@ -90,14 +244,12 @@ export function reorderBidi(characters: ClusteredChar[]): ClusteredChar[] {
+ 
+     while (i < reordered.length) {
+       if (charLevels[i]! >= level) {
+-        // Find the end of this run
+         let j = i + 1
+ 
+         while (j < reordered.length && charLevels[j]! >= level) {
+           j++
+         }
+ 
+-        // Reverse the run in both arrays
+         reverseRange(reordered, i, j - 1)
+         reverseRangeNumbers(charLevels, i, j - 1)
+         i = j
+@@ -131,14 +283,10 @@ function reverseRangeNumbers(arr: number[], start: number, end: number): void {
+ }
+ 
+ /**
+- * Quick check for RTL characters (Hebrew, Arabic, and related scripts).
+- * Avoids running the full bidi algorithm on pure-LTR text.
++ * Quick check for RTL characters (Hebrew, Arabic, Persian, and related scripts).
++ * Avoids running the full shaping and bidi algorithm on pure-LTR text.
+  */
+-function hasRTLCharacters(text: string): boolean {
+-  // Hebrew: U+0590-U+05FF, U+FB1D-U+FB4F
+-  // Arabic: U+0600-U+06FF, U+0750-U+077F, U+08A0-U+08FF, U+FB50-U+FDFF, U+FE70-U+FEFF
+-  // Thaana: U+0780-U+07BF
+-  // Syriac: U+0700-U+074F
++export function hasRTLCharacters(text: string): boolean {
+   return /[\u0590-\u05FF\uFB1D-\uFB4F\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\u0780-\u07BF\u0700-\u074F]/u.test(
+     text
+   )
 diff --git a/web/src/App.tsx b/web/src/App.tsx
 index 79f7e48..bdf4632 100644
 --- a/web/src/App.tsx

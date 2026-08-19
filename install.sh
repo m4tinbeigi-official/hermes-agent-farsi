@@ -10,7 +10,7 @@
 #   - ترجمه پیام‌های CLI/گیت‌وی (تأیید دستورات، پاسخ‌های تلگرام و ...)
 #
 # کاربرد:
-#   curl -fsSL https://raw.githubusercontent.com/<user>/hermes-agent-farsi/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/m4tinbeigi-official/hermes-agent-farsi/main/install.sh | bash
 #
 # یا به‌صورت محلی:
 #   ./install.sh [مسیر نصب هرمس]
@@ -39,6 +39,22 @@ fi
 
 log "نصب Hermes Agent در $HERMES_DIR پیدا شد."
 
+TMP_CLONE=""
+cleanup() {
+    if [ -n "$TMP_CLONE" ] && [ -d "$TMP_CLONE" ]; then
+        rm -rf "$TMP_CLONE"
+    fi
+}
+trap cleanup EXIT
+
+SOURCE_DIR="$SCRIPT_DIR"
+if [ ! -d "$SOURCE_DIR/patch" ]; then
+    log "در حال دانلود فایل‌های پچ از مخزن گیت‌هاب..."
+    TMP_CLONE="$(mktemp -d)"
+    git clone --depth=1 https://github.com/m4tinbeigi-official/hermes-agent-farsi.git "$TMP_CLONE" >/dev/null 2>&1
+    SOURCE_DIR="$TMP_CLONE"
+fi
+
 # --- گیت‌وی در حال اجرا را متوقف می‌کنیم تا فایل‌ها با خیال راحت جایگزین شوند ---
 GATEWAY_WAS_RUNNING=false
 if command -v hermes >/dev/null 2>&1 && hermes status 2>/dev/null | grep -qi "running"; then
@@ -52,20 +68,20 @@ mkdir -p "$HERMES_DIR/web/src/i18n"
 mkdir -p "$HERMES_DIR/web/src/lib"
 mkdir -p "$HERMES_DIR/web/public/fonts-fa"
 
-cp "$SCRIPT_DIR/patch/new-files/locales/fa.yaml"              "$HERMES_DIR/locales/fa.yaml"
-cp "$SCRIPT_DIR/patch/new-files/web/src/i18n/fa.ts"            "$HERMES_DIR/web/src/i18n/fa.ts"
-cp "$SCRIPT_DIR/patch/new-files/web/src/lib/faConfigLabels.ts" "$HERMES_DIR/web/src/lib/faConfigLabels.ts"
-cp "$SCRIPT_DIR/patch/new-files/web/public/fonts-fa/"*.woff2   "$HERMES_DIR/web/public/fonts-fa/"
+cp "$SOURCE_DIR/patch/new-files/locales/fa.yaml"              "$HERMES_DIR/locales/fa.yaml"
+cp "$SOURCE_DIR/patch/new-files/web/src/i18n/fa.ts"            "$HERMES_DIR/web/src/i18n/fa.ts"
+cp "$SOURCE_DIR/patch/new-files/web/src/lib/faConfigLabels.ts" "$HERMES_DIR/web/src/lib/faConfigLabels.ts"
+cp "$SOURCE_DIR/patch/new-files/web/public/fonts-fa/"*.woff2   "$HERMES_DIR/web/public/fonts-fa/"
 ok "فایل‌های جدید کپی شدند."
 
 # --- ۲) اعمال پچ روی فایل‌های موجود ---
 log "اعمال تغییرات روی فایل‌های موجود..."
 cd "$HERMES_DIR"
-if git apply --check "$SCRIPT_DIR/patch/persian-localization.diff" 2>/dev/null; then
-    git apply "$SCRIPT_DIR/patch/persian-localization.diff"
+if git apply --check "$SOURCE_DIR/patch/persian-localization.diff" 2>/dev/null; then
+    git apply "$SOURCE_DIR/patch/persian-localization.diff"
     ok "پچ با موفقیت اعمال شد."
-elif patch -p1 --dry-run < "$SCRIPT_DIR/patch/persian-localization.diff" >/dev/null 2>&1; then
-    patch -p1 < "$SCRIPT_DIR/patch/persian-localization.diff"
+elif patch -p1 --dry-run < "$SOURCE_DIR/patch/persian-localization.diff" >/dev/null 2>&1; then
+    patch -p1 < "$SOURCE_DIR/patch/persian-localization.diff"
     ok "پچ با موفقیت اعمال شد (patch)."
 else
     warn "اعمال خودکار پچ ممکن نشد — احتمالاً نسخه Hermes شما با نسخه‌ای که این پچ رویش ساخته شده فرق دارد."
@@ -107,7 +123,16 @@ else
     ok "زبان فارسی از قبل در config.yaml تنظیم شده بود."
 fi
 
-# --- ۴) بازساخت داشبورد وب ---
+# --- ۴) بازساخت رابط ترمینال/TUI (فارسی‌سازی حروف و راست‌چین در چت و ترمینال) ---
+if [ -f "$HERMES_DIR/ui-tui/scripts/build.mjs" ]; then
+    log "در حال بازساخت رابط کاربری ترمینال (ui-tui)..."
+    if command -v node >/dev/null 2>&1; then
+        node "$HERMES_DIR/ui-tui/scripts/build.mjs" >/dev/null 2>&1 || warn "بازساخت خودکار ui-tui ناموفق بود."
+        ok "رابط کاربری ترمینال و چت (ui-tui) بازسازی شد."
+    fi
+fi
+
+# --- ۵) بازساخت داشبورد وب ---
 log "در حال بازساخت داشبورد وب (ممکن است کمی طول بکشد)..."
 HERMES_BIN="$HERMES_DIR/venv/bin/python"
 if [ ! -x "$HERMES_BIN" ]; then
@@ -121,7 +146,7 @@ sleep 2
 log "بازساخت داشبورد در پس‌زمینه شروع شد. برای دیدن پیشرفت:"
 echo "    tail -f /tmp/hermes-farsi-dashboard-build.log"
 
-# --- ۵) راه‌اندازی مجدد گیت‌وی (در صورت اجرا بودن) ---
+# --- ۶) راه‌اندازی مجدد گیت‌وی (در صورت اجرا بودن) ---
 if [ "$GATEWAY_WAS_RUNNING" = true ] && command -v hermes >/dev/null 2>&1; then
     log "راه‌اندازی مجدد گیت‌وی..."
     hermes gateway restart >/dev/null 2>&1 || warn "راه‌اندازی مجدد خودکار گیت‌وی ناموفق بود؛ دستی اجرا کنید: hermes gateway restart"

@@ -10,7 +10,7 @@
 # ترجمه می‌کند، صفحه را راست‌چین می‌کند، و فونت وزیرمتن را بارگذاری می‌کند.
 #
 # کاربرد:
-#   curl -fsSL https://raw.githubusercontent.com/<user>/hermes-agent-farsi/main/install-plugin.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/m4tinbeigi-official/hermes-agent-farsi/main/install-plugin.sh | bash
 # ============================================================================
 
 set -euo pipefail
@@ -29,10 +29,26 @@ if [ ! -d "$HERMES_HOME_DIR" ]; then
     exit 1
 fi
 
+TMP_CLONE=""
+cleanup() {
+    if [ -n "$TMP_CLONE" ] && [ -d "$TMP_CLONE" ]; then
+        rm -rf "$TMP_CLONE"
+    fi
+}
+trap cleanup EXIT
+
+SOURCE_DIR="$SCRIPT_DIR"
+if [ ! -d "$SOURCE_DIR/plugin/hermes-farsi" ]; then
+    log "در حال دانلود فایل‌های پلاگین از مخزن گیت‌هاب..."
+    TMP_CLONE="$(mktemp -d)"
+    git clone --depth=1 https://github.com/m4tinbeigi-official/hermes-agent-farsi.git "$TMP_CLONE" >/dev/null 2>&1
+    SOURCE_DIR="$TMP_CLONE"
+fi
+
 log "کپی پلاگین در $PLUGINS_DIR/hermes-farsi ..."
 mkdir -p "$PLUGINS_DIR"
 rm -rf "$PLUGINS_DIR/hermes-farsi"
-cp -R "$SCRIPT_DIR/plugin/hermes-farsi" "$PLUGINS_DIR/hermes-farsi"
+cp -R "$SOURCE_DIR/plugin/hermes-farsi" "$PLUGINS_DIR/hermes-farsi"
 ok "فایل‌های پلاگین کپی شدند."
 
 log "فعال‌سازی پلاگین در config.yaml ..."
