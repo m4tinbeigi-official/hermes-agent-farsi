@@ -150,8 +150,20 @@
       var escEv = new KeyboardEvent("keydown", { key: "Escape", bubbles: true });
       document.dispatchEvent(escEv);
     };
-    listbox.appendChild(faBtn);
+    if (listbox.firstChild) {
+      listbox.insertBefore(faBtn, listbox.firstChild);
+    } else {
+      listbox.appendChild(faBtn);
+    }
   }
+
+  // Capturing click listener to immediately inject option into dropdown when opened
+  document.addEventListener("click", function () {
+    setTimeout(function () {
+      var lbs = document.querySelectorAll("[role='listbox']");
+      for (var l = 0; l < lbs.length; l++) injectFaOptionToListbox(lbs[l]);
+    }, 0);
+  }, true);
 
   // Note: deliberately synchronous, not requestAnimationFrame-debounced.
   // rAF is throttled/paused on backgrounded tabs in most browsers, which
