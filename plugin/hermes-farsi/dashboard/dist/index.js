@@ -32,7 +32,40 @@
     return false;
   }
 
+  function isFaActive() {
+    try {
+      var stored = localStorage.getItem("hermes-locale");
+      if (stored) return stored === "fa";
+    } catch (e) {}
+    var lang = document.documentElement.getAttribute("lang");
+    if (lang) return lang === "fa";
+    return true;
+  }
+
+  function applyRtlAndFont() {
+    if (!isFaActive()) {
+      document.documentElement.removeAttribute("data-hermes-farsi");
+      return;
+    }
+    document.documentElement.setAttribute("data-hermes-farsi", "1");
+    if (document.documentElement.getAttribute("dir") !== "rtl") {
+      document.documentElement.setAttribute("dir", "rtl");
+    }
+    if (document.documentElement.getAttribute("lang") !== "fa") {
+      document.documentElement.setAttribute("lang", "fa");
+    }
+  }
+
+  function removeRtlAndFont() {
+    document.documentElement.removeAttribute("data-hermes-farsi");
+    var lang = document.documentElement.getAttribute("lang");
+    if (lang && lang !== "fa") {
+      document.documentElement.setAttribute("dir", "ltr");
+    }
+  }
+
   function translateTextNode(node) {
+    if (!isFaActive()) return;
     if (translatedNodes.has(node)) return;
     var parent = node.parentElement;
     if (shouldSkipElement(parent)) return;
@@ -49,6 +82,7 @@
   }
 
   function translateAttributes(el) {
+    if (!isFaActive()) return;
     if (shouldSkipElement(el)) return;
     for (var i = 0; i < ATTR_NAMES.length; i++) {
       var name = ATTR_NAMES[i];
@@ -76,10 +110,31 @@
     }
   }
 
-  function applyRtlAndFont() {
-    document.documentElement.setAttribute("data-hermes-farsi", "1");
-    document.documentElement.setAttribute("dir", "rtl");
-    document.documentElement.setAttribute("lang", "fa");
+  function injectFaOptionToListbox(listbox) {
+    if (!listbox || listbox.querySelector("[data-hermes-fa-option]")) return;
+    var buttons = listbox.querySelectorAll("button[role='option']");
+    for (var b = 0; b < buttons.length; b++) {
+      if (buttons[b].textContent.indexOf("فارسی") !== -1) return;
+    }
+    var faBtn = document.createElement("button");
+    faBtn.setAttribute("type", "button");
+    faBtn.setAttribute("role", "option");
+    faBtn.setAttribute("data-hermes-fa-option", "1");
+    faBtn.className = "w-full text-left px-3 py-1.5 flex items-center gap-2 cursor-pointer font-sans text-display text-xs tracking-[0.08em] hover:bg-accent hover:text-accent-foreground transition-colors " + (isFaActive() ? "font-semibold text-foreground" : "text-muted-foreground");
+    faBtn.innerHTML = '<span class="truncate">فارسی</span>';
+    faBtn.onclick = function (e) {
+      e.stopPropagation();
+      try {
+        localStorage.setItem("hermes-locale", "fa");
+      } catch (err) {}
+      document.documentElement.setAttribute("lang", "fa");
+      document.documentElement.setAttribute("dir", "rtl");
+      applyRtlAndFont();
+      walk(document.body);
+      var escEv = new KeyboardEvent("keydown", { key: "Escape", bubbles: true });
+      document.dispatchEvent(escEv);
+    };
+    listbox.appendChild(faBtn);
   }
 
   // Note: deliberately synchronous, not requestAnimationFrame-debounced.
@@ -89,34 +144,72 @@
   // same-tick mutations into one array, so a plain loop here is cheap
   // enough without an extra debounce layer.
   function init() {
-    applyRtlAndFont();
-    walk(document.body);
+    if (isFaActive()) {
+      applyRtlAndFont();
+      walk(document.body);
+    } else {
+      removeRtlAndFont();
+    }
 
     var observer = new MutationObserver(function (mutations) {
+      var active = isFaActive();
       for (var i = 0; i < mutations.length; i++) {
         var m = mutations[i];
         if (m.type === "characterData") {
-          translateTextNode(m.target);
+          if (active) translateTextNode(m.target);
         } else if (m.type === "childList") {
           for (var j = 0; j < m.addedNodes.length; j++) {
             var added = m.addedNodes[j];
             if (added.nodeType === 1) {
-              walk(added);
-            } else if (added.nodeType === 3) {
+              if (added.getAttribute && added.getAttribute("role") === "listbox") {
+                injectFaOptionToListbox(added);
+              } else if (added.querySelector) {
+                var lbs = added.querySelectorAll("[role='listbox']");
+                for (var l = 0; l < lbs.length; l++) injectFaOptionToListbox(lbs[l]);
+              }
+              if (active) walk(added);
+            } else if (added.nodeType === 3 && active) {
               translateTextNode(added);
             }
           }
-        } else if (m.type === "attributes" && m.target.nodeType === 1) {
-          translateAttributes(m.target);
+        } else if (m.type === "attributes") {
+          if (m.target === document.documentElement && (m.attributeName === "lang" || m.attributeName === "dir")) {
+            if (isFaActive()) {
+              applyRtlAndFont();
+              walk(document.body);
+            } else {
+              removeRtlAndFont();
+            }
+          } else if (m.target.nodeType === 1 && active) {
+            translateAttributes(m.target);
+          }
         }
       }
     });
+
     observer.observe(document.body, {
       childList: true,
       subtree: true,
       characterData: true,
       attributes: true,
       attributeFilter: ATTR_NAMES,
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["lang", "dir"],
+    });
+
+    window.addEventListener("storage", function (e) {
+      if (e.key === "hermes-locale") {
+        if (isFaActive()) {
+          applyRtlAndFont();
+          walk(document.body);
+        } else {
+          removeRtlAndFont();
+          window.location.reload();
+        }
+      }
     });
   }
 
