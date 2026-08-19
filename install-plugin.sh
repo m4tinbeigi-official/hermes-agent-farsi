@@ -79,6 +79,8 @@ if yaml is not None:
     if name not in enabled:
         enabled.append(name)
     plugins["enabled"] = sorted(set(enabled))
+    display = config.setdefault("display", {})
+    display["language"] = "fa"
     with open(path, "w") as f:
         yaml.safe_dump(config, f, allow_unicode=True, sort_keys=False)
     print("enabled via yaml:", plugins["enabled"])
@@ -102,11 +104,21 @@ else:
                 text += f"\nplugins:\n  enabled:\n    - {name}\n"
         else:
             text += f"\nplugins:\n  enabled:\n    - {name}\n"
-        with open(path, "w") as f:
-            f.write(text)
+    if "language: fa" not in text:
+        if re.search(r"^display:\s*$", text, re.MULTILINE):
+            text = re.sub(r"^(display:\s*\n)", r"\1  language: fa\n", text, flags=re.MULTILINE)
+        else:
+            text += "\ndisplay:\n  language: fa\n"
+    with open(path, "w") as f:
+        f.write(text)
     print("enabled via fallback append")
 PYEOF
 ok "پلاگین در پیکربندی فعال شد."
+
+# Copy locales/fa.yaml if hermes-agent locales folder exists
+if [ -d "$HERMES_HOME_DIR/hermes-agent/locales" ] && [ -f "$SOURCE_DIR/patch/new-files/locales/fa.yaml" ]; then
+    cp "$SOURCE_DIR/patch/new-files/locales/fa.yaml" "$HERMES_HOME_DIR/hermes-agent/locales/fa.yaml" 2>/dev/null || true
+fi
 
 log "راه‌اندازی مجدد داشبورد تا پلاگین اسکن شود..."
 if "$PYTHON_BIN" -m hermes_cli.main dashboard --stop >/dev/null 2>&1; then :; fi

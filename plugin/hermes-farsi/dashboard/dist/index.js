@@ -35,10 +35,10 @@
   function isFaActive() {
     try {
       var stored = localStorage.getItem("hermes-locale");
-      if (stored) return stored === "fa";
+      if (stored !== null) {
+        return stored === "fa";
+      }
     } catch (e) {}
-    var lang = document.documentElement.getAttribute("lang");
-    if (lang) return lang === "fa";
     return true;
   }
 
@@ -61,6 +61,19 @@
     var lang = document.documentElement.getAttribute("lang");
     if (lang && lang !== "fa") {
       document.documentElement.setAttribute("dir", "ltr");
+    }
+  }
+
+  function updateLanguageButton() {
+    if (!isFaActive()) return;
+    var btns = document.querySelectorAll("button[aria-haspopup='listbox']");
+    for (var i = 0; i < btns.length; i++) {
+      var b = btns[i];
+      var text = (b.textContent || "").trim();
+      if (text === "EN" || text === "English") {
+        var el = b.querySelector("span") || b;
+        el.textContent = "فارسی";
+      }
     }
   }
 
@@ -116,12 +129,14 @@
     for (var b = 0; b < buttons.length; b++) {
       if (buttons[b].textContent.indexOf("فارسی") !== -1) return;
     }
+    var faActive = isFaActive();
     var faBtn = document.createElement("button");
     faBtn.setAttribute("type", "button");
     faBtn.setAttribute("role", "option");
+    faBtn.setAttribute("aria-selected", faActive ? "true" : "false");
     faBtn.setAttribute("data-hermes-fa-option", "1");
-    faBtn.className = "w-full text-left px-3 py-1.5 flex items-center gap-2 cursor-pointer font-sans text-display text-xs tracking-[0.08em] hover:bg-accent hover:text-accent-foreground transition-colors " + (isFaActive() ? "font-semibold text-foreground" : "text-muted-foreground");
-    faBtn.innerHTML = '<span class="truncate">فارسی</span>';
+    faBtn.className = "w-full text-left px-3 py-1.5 flex items-center gap-2 cursor-pointer font-sans text-display text-xs tracking-[0.08em] hover:bg-accent hover:text-accent-foreground transition-colors " + (faActive ? "font-semibold text-foreground" : "text-muted-foreground");
+    faBtn.innerHTML = '<span class="truncate">فارسی</span>' + (faActive ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ml-auto h-3 w-3 shrink-0 text-midground"><polyline points="20 6 9 17 4 12"></polyline></svg>' : '');
     faBtn.onclick = function (e) {
       e.stopPropagation();
       try {
@@ -131,6 +146,7 @@
       document.documentElement.setAttribute("dir", "rtl");
       applyRtlAndFont();
       walk(document.body);
+      updateLanguageButton();
       var escEv = new KeyboardEvent("keydown", { key: "Escape", bubbles: true });
       document.dispatchEvent(escEv);
     };
@@ -144,9 +160,17 @@
   // same-tick mutations into one array, so a plain loop here is cheap
   // enough without an extra debounce layer.
   function init() {
+    try {
+      var stored = localStorage.getItem("hermes-locale");
+      if (stored === null || stored === "fa") {
+        localStorage.setItem("hermes-locale", "fa");
+      }
+    } catch (e) {}
+
     if (isFaActive()) {
       applyRtlAndFont();
       walk(document.body);
+      updateLanguageButton();
     } else {
       removeRtlAndFont();
     }
@@ -167,7 +191,10 @@
                 var lbs = added.querySelectorAll("[role='listbox']");
                 for (var l = 0; l < lbs.length; l++) injectFaOptionToListbox(lbs[l]);
               }
-              if (active) walk(added);
+              if (active) {
+                walk(added);
+                updateLanguageButton();
+              }
             } else if (added.nodeType === 3 && active) {
               translateTextNode(added);
             }
@@ -177,6 +204,7 @@
             if (isFaActive()) {
               applyRtlAndFont();
               walk(document.body);
+              updateLanguageButton();
             } else {
               removeRtlAndFont();
             }
