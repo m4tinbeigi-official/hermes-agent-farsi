@@ -127,3 +127,51 @@ html[dir="rtl"] [class*="xterm"] {
   unicode-bidi: isolate;
   font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Monaco, Consolas, "Vazirmatn", monospace !important;
 }
+
+
+/* ==========================================================================
+   Persian RTL Layout & Tooltips Optimizations
+   ========================================================================== */
+
+/* RTL Tooltip directions */
+html[lang="fa"] .has-tooltip::after,
+html[dir="rtl"] .has-tooltip::after {
+  direction: rtl !important;
+  text-align: right !important;
+  font-family: 'Vazirmatn', system-ui, sans-serif !important;
+  z-index: 100000 !important;
+}
+
+/* Tooltips in footer */
+html[lang="fa"] .composer-footer .has-tooltip::after,
+html[lang="fa"] .composer-left .has-tooltip::after {
+  top: auto !important;
+  bottom: calc(100% + 10px) !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+}
+
+/* Suggestion grid RTL */
+html[lang="fa"] .suggestion-grid,
+html[dir="rtl"] .suggestion-grid {
+  direction: rtl !important;
+}
+
+html[lang="fa"] .suggestion,
+html[dir="rtl"] .suggestion {
+  direction: rtl !important;
+  text-align: right !important;
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+html[lang="fa"] .suggestion svg,
+html[dir="rtl"] .suggestion svg {
+  margin-left: 4px !important;
+  margin-right: 0 !important;
+  flex-shrink: 0 !important;
+}
